@@ -42,6 +42,19 @@
   <script src="static/js/bulma-carousel.min.js"></script>
   <script src="static/js/bulma-slider.min.js"></script>
   <script src="static/js/index.js"></script>
+  <script>
+    window.MathJax = {
+      tex: {
+        packages: {'[+]': ['ams']}
+      },
+      loader: {
+        load: ['[tex]/ams']
+      }
+    };
+  </script>
+  <script type="text/javascript" id="MathJax-script" async
+    src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js">
+  </script>
 </head>
 
 <body>
@@ -204,140 +217,195 @@
   </section>
   <!-- End paper abstract -->
 
-  <!-- Method Image -->
-  <section class="hero">
+  <section class="section hero">
     <div class="container is-max-desktop">
-      <div class="hero-body">
-        <h2 class="title is-3">Multi-Model Training</h2>
-        <img src="static/images/multi-model training.png" alt="Method Image" class="method-image">
+      <div class="columns is-centered has-text-justified">
+        <div class="column is-four-fifths">
+          <h2 class="title is-3">Structure Detection MBTL at a Glance</h2>
+          <p>
+            Real-world CRL deployments must juggle <em>families</em> of related tasks whose dynamics shift with payloads,
+            weather, or traffic demand. Training a separate agent for every context wastes samples, yet a single
+            multi-task policy often collapses under negative transfer once the context space grows. SD-MBTL instead asks
+            whether the current CMDP exhibits a recognizable structure (e.g., the <span class="small-caps-text">Mountain</span>
+            pattern where performance decays smoothly with context distance) and then picks the best source-task
+            selection strategy on the fly. The rest of the page summarizes the math behind this detector and how it feeds
+            into the training loop.
+          </p>
+        </div>
       </div>
     </div>
   </section>
-  <section class="hero">
+
+  <section class="section hero is-light">
     <div class="container is-max-desktop">
-      <div class="hero-body">
-        <h2 class="title is-3">Zero-shot Transfer</h2>
-        <img src="static/images/zero-shot transfer.png" alt="Method Image" class="method-image">
-      </div>
-    </div>
-  </section>
-  <section class="hero">
-    <div class="container is-max-desktop">
-      <div class="hero-body">
-        <h2 class="title is-3">Generalization Gap</h2>
-        <img src="static/images/generalization gap.png" alt="Method Image" class="method-image">
-      </div>
-    </div>
-  </section>
-  <section class="hero">
-    <div class="container is-max-desktop">
-      <div class="hero-body">
-        <h2 class="title is-3">Model for Generalization Performance</h2>
-        <div id="results-carousel" class="">
-          <div class="item">
-            <img src="static/images/generalization performance.png" alt="generalization performance" />
+      <div class="columns is-centered has-text-justified">
+        <div class="column is-four-fifths">
+          <h2 class="title is-3">Generalization-Performance Decomposition</h2>
+          <div class="content">
+            <p>
+              For each source&ndash;target pair we split the transfer return into source quality, target difficulty, and
+              dissimilarity:
+            </p>
+            <p class="has-text-centered">
+              \[J(\pi_x, y) = f(x) + g(y) + h(x,y) + C.
+              \]
+            </p>
+            <p>
+              After training on contexts \(x_{1:k}\) we estimate target difficulty by subtracting the empirical mean over
+              trained policies, \(\overline{J}(\pi_x,y) = J(\pi_x,y) - \mathbb{E}_{x' \in x_{1:k}}[J(\pi_{x'},y)]\), and
+              apply two detection criteria:
+            </p>
+            <p class="has-text-centered">
+              \[
+              \texttt{Mountain} \Longleftrightarrow
+              \begin{cases}
+              \operatorname{std}_{x} \overline{J}(\pi_x,x) < \mathbb{E}_{x}\big[\operatorname{std}_{y} \overline{J}(\pi_x,y)\big], \\
+              \text{sgn}(\theta_{\text{left}}^d) = \text{sgn}(\theta_{\text{right}}^d) \quad \forall d,
+              \end{cases}
+              \]
+            </p>
+            <p>
+              where \(\theta_{\text{left/right}}^d\) are slopes from a linear regression on the signed L<sub>1</sub> context
+              differences in dimension \(d\). Passing both tests means policy quality is almost constant and dissimilarity
+              behaves like a distance metric, so the CMDP can be treated as <span class="small-caps-text">Mountain</span>. Otherwise training performance is
+              heterogeneous and we rely on GP modeling.
+            </p>
           </div>
         </div>
       </div>
     </div>
   </section>
 
-  <!-- <section class="hero">
+  <section class="section hero">
     <div class="container is-max-desktop">
       <div class="hero-body">
-        <h2 class="title is-3">Model-Based Transfer Learning</h2>
-        <img src="static/images/model-based transfer learning.png" alt="Method Image" class="method-image">
+        <h2 class="title is-3">Detect &rarr; Select Loop</h2>
+        <div class="columns is-centered">
+          <div class="column">
+            <p class="has-text-justified">
+              <strong>Train:</strong> dedicate millions of PPO steps to one source context \(x_k\) to obtain a high-quality
+              policy \(\pi_{x_k}\).
+            </p>
+          </div>
+          <div class="column">
+            <p class="has-text-justified">
+              <strong>Evaluate:</strong> zero-shot transfer \(\pi_{x_k}\) to every target \(y\in Y\) to populate a new row of
+              the transfer matrix.
+            </p>
+          </div>
+          <div class="column">
+            <p class="has-text-justified">
+              <strong>Detect:</strong> update the statistics above, decide whether <span class="small-caps-text">Mountain</span> holds, and route training to the
+              corresponding selector.
+            </p>
+          </div>
+        </div>
+        <div class="content has-text-justified">
+          <p>
+            Each iteration of SD-MBTL therefore looks like:
+          </p>
+          <ol>
+            <li><strong>Update statistics.</strong> The fresh transfer row refines the estimates of \(f(x)\), \(g(y)\), and
+              \(h(x,y)\), and we test the variance and slope criteria above.</li>
+            <li><strong>Decide the structure.</strong> Passing both tests tags the CMDP as
+              <span class="small-caps-text">Mountain</span>; otherwise we assume heterogeneous policy quality and lean on GP
+              modeling.</li>
+            <li><strong>Select the next task.</strong> We invoke the algorithm matched to the detected structure and add the
+              chosen context to \(x_{1:k}\).</li>
+          </ol>
+          <p>
+            When <span class="small-caps-text">Mountain</span> holds, greedy source-task selection reduces to a sequential
+            clustering problem with L<sub>1</sub> loss:
+          </p>
+          <p class="has-text-centered">
+            \[
+            x_k = \arg\min_{x \in X} \mathbb{E}_{y \sim \mathcal{U}(Y)}\Big[\min_{x' \in x_{1:k-1} \cup \{x\}} \|x' - y\|_1\Big],
+            \]
+          </p>
+          <p>
+            and we solve it via a K-means style update plus random restarts (M-MBTL). Otherwise we choose GP-MBTL: a Gaussian
+            process regresses \(J(\pi_x,x)\), the learned slopes \(\theta_{\text{left/right}}\) produce gap estimates, and an
+            upper-confidence acquisition balances exploration and exploitation. Both branches reuse the same transfer data
+            but embody different inductive biases, providing a principled Detect &rarr; Select loop.
+          </p>
+        </div>
+        <div class="columns is-centered">
+          <div class="column">
+            <p><b>M-MBTL</b></p>
+            <img src="static/images/M-MBTL.png" alt="M-MBTL" class="method-image">
+          </div>
+          <div class="column">
+            <p><b>GP-MBTL</b></p>
+            <img src="static/images/MBTL overview.gif" alt="GP-MBTL" class="method-image">
+          </div>
+        </div>
       </div>
     </div>
-  </section> -->
-  <section class="hero">
+  </section>
+  
+  <section class="section hero is-light">
     <div class="container is-max-desktop">
-      <div class="hero-body">
-        <h2 class="title is-3">Model-Based Transfer Learning (MBTL) process</h2>
-        <!-- <img src="static/images/mbtl_process.png" alt="Method Detail" class="method-image"> -->
-        <img src="static/images/MBTL overview.gif" alt="Method Detail" class="method-image">
-        <h2 class="subtitle">
-          <br>
-          <b>Overview illustration for Model-based Transfer Learning.</b> (a) Gaussian process regression is used to estimate the training performance across tasks using existing policies; (b) marginal generalization performance (red area) is calculated using upper confidence bound of estimated training performance, generalization gap, and generalization performance; (c) selects the next training task that maximizes the acquisition function (marginal generalization performance); (d) once the selected task is trained, calculate generalization performance using zero-shot transfer.
-        </h2>
-        <img src="static/images/tweet_new.gif" alt="MBTL Detail" class="method-image">
+      <div class="columns is-centered has-text-justified">
+        <div class="column is-four-fifths">
+          <h2 class="title is-3">M/GP-MBTL</h2>
+          <img src="static/images/mgp-mbtl.png" alt="M/GP-MBTL" class="method-image">
+        </div>
       </div>
     </div>
   </section>
 
-    <!-- Image carousel -->
-    <!-- <section class="hero is-small">
-      <div class="hero-body">
-        <div class="container">
-          <h2 class="title is-3">Experiments</h2>
-          <div id="results-carousel" class="carousel results-carousel">
-            <div class="item">
-              <img src="static/images/advisory-network.png" alt="advisory-network" />
-              <h2 class="subtitle has-text-centered">
-                Advisory Autonomy.
-              </h2>
-            </div>
-            <div class="item">
-              <img src="static/images/traffic-signal-network.png" alt="traffic-signal-network" />
-              <h2 class="subtitle has-text-centered">
-                Traffic Signal Control
-              </h2>
-            </div>
-            <div class="item">
-              <img src="static/images/eco-driving-network.png" alt="eco-driving-network" />
-              <h2 class="subtitle has-text-centered">
-                Eco-Driving Control
-              </h2>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section> -->
-    <!-- End image carousel -->
-
-    <!-- Image carousel -->
-    <!-- <section class="hero is-small">
-      <div class="hero-body">
-        <div class="container">
-          <h2 class="title is-3">Results</h2>
-          <div id="results-carousel" class="carousel results-carousel">
-            <div class="item">
-              <img src="static/images/result_figure_control.png" alt="result_figure_control" />
-              <h2 class="subtitle has-text-centered">
-                Results on control tasks.
-              </h2>
-            </div>
-            <div class="item">
-              <img src="static/images/result_figure_traffic.png" alt="result_figure_traffic" />
-              <h2 class="subtitle has-text-centered">
-                Results on traffic tasks.
-              </h2>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section> -->
     <section class="hero">
       <div class="container is-max-desktop">
         <div class="hero-body">
-          <h2 class="title is-3">Results (Traffic CMDP benchmarks)</h2>
-          <div id="results-carousel" class="">
-            <div class="item">
-              <img src="static/images/result_figure_traffic_sample_log.png" alt="result_figure_control" />
+          <h2 class="title is-3">Benchmark Highlights</h2>
+          <div class="columns is-multiline">
+            <div class="column is-one-third">
+              <div class="box has-text-centered">
+                <div class="columns is-centered">
+                  <div class="column is-half">
+                    <img src="static/images/cartpole.gif" alt="CartPole" class="method-image">
+                  </div>
+                  <div class="column is-half">
+                    <img src="static/images/bipedalwalker.gif" alt="BipedalWalker" class="method-image">
+                  </div>
+                </div>
+                <p class="has-text-justified">
+                  <strong>CartPole.</strong> Even on this easy CMDP, M/GP-MBTL keeps pace with the best multi-task policy
+                  while training only a few experts.
+                </p>
+                <p class="has-text-justified">
+                  <strong>BipedalWalker.</strong> <span class="small-caps-text">Mountain</span> structure dominates, so
+                  M/GP-MBTL routes to M-MBTL and clearly outperforms both random and multi-task training.
+                </p>
+              </div>
+            </div>
+            <div class="column is-one-third">
+              <div class="box has-text-centered">
+                <img src="static/images/intersectionzoo.gif" alt="IntersectionZoo" class="method-image">
+                <img src="static/images/intersectionzoo-logo.png" alt="IntersectionZoo logo" class="method-image">
+                <p class="has-text-justified">
+                  <strong>IntersectionZoo.</strong> Target-task difficulty varies sharply, so the detector prefers GP-MBTL,
+                  yielding large gains over random or independent training while remaining competitive with the GP-only
+                  variant.
+                </p>
+              </div>
+            </div>
+            <div class="column is-one-third">
+              <div class="box has-text-centered">
+                <img src="static/images/cyclesgym.png" alt="CyclesGym" class="method-image">
+                <p class="has-text-justified">
+                  <strong>CyclesGym.</strong> Another <span class="small-caps-text">Mountain</span> CMDP where clustering
+                  excels; SD-MBTL mirrors the M-MBTL performance and surpasses independent as well as multi-task baselines.
+                </p>
+              </div>
             </div>
           </div>
-        </div>
-      </div>
-    </section>
-
-    <section class="hero">
-      <div class="container is-max-desktop">
-        <div class="hero-body">
-          <h2 class="title is-3">Results (Control CMDP benchmarks)</h2>
-          <div id="results-carousel" class="">
-            <div class="item">
-              <img src="static/images/result_figure_control_sample_log.png" alt="result_figure_control" />
-            </div>
+          <div class="content has-text-justified">
+            <p>
+              After min-max normalizing each benchmark between the random policy and the myopic oracle, M/GP-MBTL improves
+              the aggregated score by <strong>12.49%</strong> over the best prior MBTL method.
+            </p>
+            <img src="static/images/mgp-mbtl-result.png" alt="Aggregated results" class="method-image">
           </div>
         </div>
       </div>
