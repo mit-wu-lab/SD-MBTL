@@ -8,7 +8,7 @@
   <meta name="description" content="Structure Detection for Contextual Reinforcement Learning">
   <meta property="og:title" content="Structure Detection for Contextual Reinforcement Learning" />
   <meta property="og:description" content="Structure Detection for Contextual Reinforcement Learning" />
-  <meta property="og:url" content="https://jhoon-cho.github.io/MBTL-page/" />
+  <meta property="og:url" content="https://mit-wu-lab.github.io/SD-MBTL/" />
   <!-- Path to banner image, should be in the path listed below. Optimal dimenssions are 1200X630-->
   <meta property="og:image" content="static/image/overview.png" />
   <meta property="og:image:width" content="1200" />
@@ -57,27 +57,24 @@
             <div class="is-size-5 publication-authors">
               <!-- Paper authors -->
               <span class="author-block">
-                <a href="https://www.junghooncho.com/" target="_blank">Jung-Hoon Cho</a>,</span>
+                <a href="https://scholar.google.com/citations?user=GCeMu2MAAAAJ&hl=en" target="_blank">Tianyue Zhou*</a>,</span>
               <span class="author-block">
-                <a href="https://vindulamj.github.io/" target="_blank">Vindula Jayawardana</a>,</span>
-              <span class="author-block">
-                <a href="https://siruil.github.io/" target="_blank">Sirui Li</a>,</span>
+                <a href="https://www.junghooncho.com/" target="_blank">Jung-Hoon Cho*</a>,</span>
               <span class="author-block">
                 <a href="https://www.wucathy.com/" target="_blank">Cathy Wu</a>
-              </span>
               </span>
             </div>
 
             <div class="is-size-5 publication-authors">
               <span class="author-block">Massachusetts Institute of Technology<br>AAAI 2026</span>
-              <!-- <span class="eql-cntrb"><small><br><sup>*</sup>Indicates Equal Contribution</small></span> -->
+              <span class="eql-cntrb"><small><br><sup>*</sup>Equal Contribution</small></span>
             </div>
 
             <div class="column has-text-centered">
               <div class="publication-links">
 
                 <!-- ArXiv abstract Link -->
-                <span class="link-block">
+                <!-- <span class="link-block">
                   <a href="https://arxiv.org/abs/2408.04498" target="_blank"
                     class="external-link button is-normal is-rounded is-dark">
                     <span class="icon">
@@ -85,7 +82,7 @@
                     </span>
                     <span>arXiv</span>
                   </a>
-                </span>
+                </span> -->
 
                 <!-- Poster PDF link -->
                 <!-- <span class="link-block">
@@ -101,7 +98,7 @@
                 <!-- Github link -->
                 <span class="link-block">
                   <!-- <a href="./" target="_blank" -->
-                  <a href="https://github.com/jhoon-cho/MBTL" target="_blank"
+                  <a href="https://github.com/mit-wu-lab/SD-MBTL" target="_blank"
                     class="external-link button is-normal is-rounded is-dark">
                     <span class="icon">
                       <i class="fab fa-github"></i>
@@ -111,19 +108,19 @@
                 </span>
 
                 <!-- X.com link -->
-                <span class="link-block">
+                <!-- <span class="link-block">
                   <a href="https://x.com/wucathy/status/1865818430013587647" target="_blank"
                     class="external-link button is-normal is-rounded is-dark">
-                    <span class="icon">
+                    <span class="icon"> -->
                       <!-- <img src="https://x.com/favicon.ico" alt="X.com favicon" style="width: 1em; height: 1em;"> -->
-                      <i class="fab fa-twitter"></i>
+                      <!-- <i class="fab fa-twitter"></i>
                     </span>
                     <span>Tweet</span>
-                  </a>
-                </span>
+                  </a> -->
+                <!-- </span> -->
 
                 <!-- News article link-->
-                <span class="link-block">
+                <!-- <span class="link-block">
                   <a href="https://news.mit.edu/2024/mit-researchers-develop-efficiency-training-more-reliable-ai-agents-1122" target="_blank"
                     class="external-link button is-normal is-rounded is-dark">
                     <span class="icon">
@@ -131,11 +128,10 @@
                     </span>
                     <span>MIT News</span>
                   </a>
-                </span>
+                </span> -->
 
                 <!-- Openreview link -->
-                <span class="link-block">
-                  <!-- <a href="https://openreview.net/forum?id=LmJH7LDfRO" target="_blank" -->
+                <!-- <span class="link-block">
                   <a href="https://openreview.net/forum?id=KLv1VLuMo8" target="_blank"
                     class="external-link button is-normal is-rounded is-dark">
                     <span class="icon">
@@ -143,7 +139,7 @@
                     </span>
                     <span>OpenReview</span>
                   </a>
-                </span>
+                </span> -->
 
                 <!-- MIT News link
                 <span class="link-block">
@@ -163,7 +159,7 @@
     </div>
   </section>
 
-  <section class="hero teaser">
+  <!-- <section class="hero teaser">
     <div class="container is-max-desktop">
       <div class="hero-body">
       <div class="columns is-centered has-text-centered">
@@ -173,20 +169,18 @@
       </div>
       </div>
     </div>
-  </section>
+  </section> -->
 
   <!-- Teaser Image -->
   <section class="hero teaser">
     <div class="container is-max-desktop">
       <div class="hero-body">
-        <img src="static/images/overview.png" alt="Teaser Image" class="teaser-image">
+        <div class="has-text-centered">
+          <img src="static/images/overview-sd-mbtl.png" alt="Teaser Image" class="teaser-image">
+        </div>
         <h2 class="subtitle has-text-centered">
           <br>
-          <b>Model-Based Transfer Learning (MBTL) for solving contextual MDPs</b>. MBTL framework strategically selects
-          optimal tasks to train by modeling the generalization gap that arises when transferring a model to different
-          tasks. For each target task, we deploy the most effective trained model, indicated by solid arrows. We
-          evaluate our framework on a suite of continuous and discrete tasks, including standard control benchmarks and
-          urban traffic benchmarks.
+          In this work, we introduce <b>Structure Detection MBTL (SD-MBTL)</b>, a generic framework that dynamically identifies the underlying generalization structure of CMDP and selects an appropriate MBTL algorithm.
         </h2>
       </div>
     </div>
@@ -201,7 +195,7 @@
           <h2 class="title is-3">Abstract</h2>
           <div class="content has-text-justified">
             <p>
-              Deep reinforcement learning (RL) is a powerful approach to complex decision making. However, one issue that limits its practical application is its brittleness, sometimes failing to train in the presence of small changes in the environment. Motivated by the success of zero-shot transfer—where pre-trained models perform well on related tasks—we consider the problem of selecting a good set of training tasks to maximize generalization performance across a range of tasks. Given the high cost of training, it is critical to select training tasks strategically, but not well understood how to do so. We hence introduce Model-Based Transfer Learning (MBTL), which layers on top of existing RL methods to effectively solve contextual RL problems. MBTL models the generalization performance in two parts: 1) the performance set point, modeled using Gaussian processes, and 2) performance loss (generalization gap), modeled as a linear function of contextual similarity. MBTL combines these two pieces of information within a Bayesian optimization (BO) framework to strategically select training tasks. We show theoretically that the method exhibits sublinear regret in the number of training tasks and discuss conditions to further tighten regret bounds. We experimentally validate our methods using urban traffic and standard continuous control benchmarks. The experimental results suggest that MBTL can achieve up to 50x improved sample efficiency compared with canonical independent training and multi-task training. Further experiments demonstrate the efficacy of BO and the insensitivity to the underlying RL algorithm and hyperparameters. This work lays the foundations for investigating explicit modeling of generalization, thereby enabling principled yet effective methods for contextual RL.
+              Contextual Reinforcement Learning (CRL) tackles the problem of solving a set of related Contextual Markov Decision Processes (CMDPs) that vary across different context variables. Traditional approaches---independent training and multi-task learning---struggle with either excessive computational costs or negative transfer. A recently proposed multi-policy approach, Model-Based Transfer Learning (MBTL), has demonstrated effectiveness by strategically selecting a few tasks to train and zero-shot transfer. However, CMDPs encompass a wide range of problems, exhibiting structural properties that vary from problem to problem. As such, different task selection strategies are suitable for different CMDPs. In this work, we introduce Structure Detection MBTL (SD-MBTL), a generic framework that dynamically identifies the underlying generalization structure of CMDP and selects an appropriate MBTL algorithm. For instance, we observe <span class="small-caps-text">Mountain</span> structure in which generalization performance degrades from the training performance of the target task as the context difference increases. We thus propose M/GP-MBTL, which detects the structure and adaptively switches between a Gaussian Process-based approach and a clustering-based approach. Extensive experiments on synthetic data and CRL benchmarks—covering continuous control, traffic control, and agricultural management—show that M/GP-MBTL surpasses the strongest prior method by 12.49% on the aggregated metric. These results highlight the promise of online structure detection for guiding source task selection in complex CRL environments.
             </p>
           </div>
         </div>

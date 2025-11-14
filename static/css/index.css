@@ -135,3 +135,6 @@ body {
 
 
 
+.small-caps-text {
+  font-variant-caps: small-caps;
+}

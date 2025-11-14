@@ -1,0 +1,24 @@
+
+\begin{table}[!ht]
+  \caption{Performance comparison on Synthetic Data}
+  \label{tab:synthetic-performance}
+  \Large
+  \resizebox{0.999\textwidth}{!}{
+  \begin{tabular}{lll
+ccccc}
+    \toprule
+    \textbf{$f(x)$} & \textbf{$g(y)$} & \textbf{$h(x,y)$}  & \textbf{Random} & \textbf{GP-MBTL} & \textbf{M-MBTL} & \textbf{M/GP-MBTL} & \textbf{Myopic Oracle}\\
+    \midrule
+    Constant & Linear & Non-distance & \begin{tabular}[c]{@{}c@{}}0.6829\\(0.0129)\end{tabular} & \begin{tabular}[c]{@{}c@{}}\textbf{0.7250}\\(0.0000)\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.6807\\(0.0000)\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.7181\\(0.0000)\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.7250\\(0.0000)\end{tabular}\\
+    Constant & Linear & $L_1$ norm & \begin{tabular}[c]{@{}c@{}}0.6849\\(0.0031)\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.6877\\(0.0000)\end{tabular} & \begin{tabular}[c]{@{}c@{}}\textbf{0.6956}\\(0.0000)\end{tabular} & \begin{tabular}[c]{@{}c@{}}\textbf{0.6956}\\(0.0000)\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.6962\\(0.0000)\end{tabular}\\
+    Constant & None & Non-distance & \begin{tabular}[c]{@{}c@{}}0.8325\\(0.0234)\end{tabular} & \begin{tabular}[c]{@{}c@{}}\textbf{0.9091}\\(0.0000)\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.8286\\(0.0000)\end{tabular} & \begin{tabular}[c]{@{}c@{}}\textbf{0.9091}\\(0.0000)\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.9091\\(0.0000)\end{tabular}\\
+    Constant & None & $L_1$ norm & \begin{tabular}[c]{@{}c@{}}0.8697\\(0.0063)\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.8909\\(0.0000)\end{tabular} & \begin{tabular}[c]{@{}c@{}}\textbf{0.8912}\\(0.0000)\end{tabular} & \begin{tabular}[c]{@{}c@{}}\textbf{0.8912}\\(0.0000)\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.8928\\(0.0000)\end{tabular}\\
+    Linear & Linear & Non-distance & \begin{tabular}[c]{@{}c@{}}0.5355\\(0.0196)\end{tabular} & \begin{tabular}[c]{@{}c@{}}\textbf{0.5714}\\(0.0000)\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.5227\\(0.0000)\end{tabular} & \begin{tabular}[c]{@{}c@{}}\textbf{0.5714}\\(0.0000)\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.5714\\(0.0000)\end{tabular}\\
+    Linear & Linear & $L_1$ norm & \begin{tabular}[c]{@{}c@{}}0.5252\\(0.0266)\end{tabular} & \begin{tabular}[c]{@{}c@{}}\textbf{0.5714}\\(0.0000)\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.5134\\(0.0000)\end{tabular} & \begin{tabular}[c]{@{}c@{}}\textbf{0.5714}\\(0.0000)\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.5714\\(0.0000)\end{tabular}\\
+    Linear & None & Non-distance & \begin{tabular}[c]{@{}c@{}}0.6496\\(0.0274)\end{tabular} & \begin{tabular}[c]{@{}c@{}}\textbf{0.7000}\\(0.0000)\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.6318\\(0.0000)\end{tabular} & \begin{tabular}[c]{@{}c@{}}\textbf{0.7000}\\(0.0000)\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.7000\\(0.0000)\end{tabular}\\
+    Linear & None & $L_1$ norm & \begin{tabular}[c]{@{}c@{}}0.7395\\(0.0266)\end{tabular} & \begin{tabular}[c]{@{}c@{}}\textbf{0.7857}\\(0.0000)\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.7277\\(0.0000)\end{tabular} & \begin{tabular}[c]{@{}c@{}}\textbf{0.7857}\\(0.0000)\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.7857\\(0.0000)\end{tabular}\\
+    \bottomrule
+  \end{tabular}}
+  \scriptsize{* \textit{Note}: Bold values represent the highest value(s) within the statistically significant range for each task, excluding the oracle. Standard deviation across multiple runs in the parenthesis.}
+\end{table}
+
