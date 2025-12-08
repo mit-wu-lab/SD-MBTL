@@ -12,20 +12,20 @@ D = 3 # 3 dimensions
 SLOPE_CONST = 0.01
 
 def independent_training(target_contexts, matrix, context_range):
-    target_index_list = [three_d_to_1d(context, context_range) for context in target_contexts]
+    target_index_list = [nd_to_1d(context, context_range) for context in target_contexts]
     matrix_used = matrix[target_index_list, :]
     matrix_used = matrix_used[:, target_index_list]
     performance = np.trace(matrix_used) / matrix_used.shape[0]
     return [performance for _ in range(K)], [0 for _ in range(K)], None
 
 def oracle_greedy(target_contexts, matrix, context_range, return_x_indices=False):
-    target_index_list = [three_d_to_1d(context, context_range) for context in target_contexts]
+    target_index_list = [nd_to_1d(context, context_range) for context in target_contexts]
     index_length = matrix.shape[0]
     remaining_indices = list(range(index_length))
     performance_list = []
     choice_list = []
     matrix = matrix[:, target_index_list]
-
+    # print("Testing sequential oracle")
     for k in tqdm(range(K)):
         performance_candidates = []
         for i in range(len(remaining_indices)):
@@ -44,7 +44,7 @@ def oracle_greedy(target_contexts, matrix, context_range, return_x_indices=False
         return choice_list
     return performance_list, [0 for _ in range(K)], None
 
-def stochastic_oracle(target_contexts, matrices, context_range):
+def oracle_greedy_v2(target_contexts, matrices, context_range):
     ''' 
     Stochastic oracle, take the average over all trials
     '''
@@ -66,7 +66,44 @@ def stochastic_oracle(target_contexts, matrices, context_range):
         time_list_trials.append(time_list)
     return performance_list_trials, time_list_trials
 
-def myopic_oracle(target_contexts, matrices, context_range):
+def oracle_greedy_v3(target_contexts, matrices, context_range):
+    n_trial = matrices.shape[0]
+    N = matrices.shape[1]
+    # matrix_mean = np.mean(matrices, axis=0)
+
+    x_train_indices = np.empty([0,]).astype(int)
+    remaining_indices = np.array(list(range(N))).astype(int)
+    for k in range(K):
+        performance_candidates = np.full([N,], -np.inf)
+        for candidate in remaining_indices:
+            x_train_indices_new = np.insert(x_train_indices, 0, candidate)
+            performance_0 = np.mean(np.max(matrices[0, x_train_indices_new, :], axis=0))
+            performance_1 = np.mean(np.max(matrices[1, x_train_indices_new, :], axis=0))
+            performance_2 = np.mean(np.max(matrices[2, x_train_indices_new, :], axis=0))
+            performance = np.mean(np.array([performance_0, performance_1, performance_2]))
+            
+            performance_candidates[candidate] = performance
+        xk = np.argmax(performance_candidates)
+        x_train_indices = np.insert(x_train_indices, 0, xk)
+        # Delete the element at the found index
+        remaining_indices = np.delete(remaining_indices, np.where(remaining_indices == xk))
+    x_train_indices = x_train_indices[::-1]
+    
+    performance_list_trials = []
+    time_list_trials = []
+    for trial in range(n_trial):
+        performance_list = []
+        time_list = [0 for _ in range(K)]
+        matrix_trial = matrices[trial, :, :]
+        for k in range(K):
+            matrix_used = matrix_trial[x_train_indices[:k+1], :].copy()
+            performance = np.mean(np.max(matrix_used, axis=0))
+            performance_list.append(performance)
+        performance_list_trials.append(performance_list)
+        time_list_trials.append(time_list)
+    return performance_list_trials, time_list_trials
+
+def oracle_greedy_v4(target_contexts, matrices, context_range):
     ''' 
     Myopic Oracle
     '''
@@ -107,6 +144,43 @@ def myopic_oracle(target_contexts, matrices, context_range):
         performance_list_trials.append(performance_list)
         time_list_trials.append(time_list)
     return performance_list_trials, time_list_trials
+
+def oracle(matrices, K):
+    ''' 
+    Non-myopic oracle
+    matrices: [N_trial, source tasks, target tasks]
+    chosen_task_tensor[n, k, :] represents the bool array of chosen tasks
+    '''
+    def get_value(chosen_tasks, new_task):
+        chosen_tasks[new_task-1] = True
+        return np.mean(np.max(matrices[:, chosen_tasks, :], axis=1))
+    num_tasks = matrices.shape[1]
+    # oracle_matrix = np.zeros([num_tasks+1, K+1])
+    oracle_matrix = np.full([num_tasks+1, K+1], -np.inf)
+    chosen_task_tensor = np.zeros([num_tasks+1, K+1, num_tasks], dtype=bool)
+    for n in tqdm(range(1, num_tasks+1)):
+        for k in range(1, K+1):
+            value_not_choose = oracle_matrix[n-1, k]
+            chosen_task_prev_k = chosen_task_tensor[n-1, k-1, :]
+            value_choose = get_value(chosen_task_prev_k, n)
+
+            if value_not_choose > value_choose:
+                oracle_matrix[n, k] = value_not_choose
+                chosen_task_tensor[n, k, :] = chosen_task_tensor[n-1, k, :]
+
+            else:
+                oracle_matrix[n, k] = value_choose
+                chosen_task_prev_k[n-1] = True
+                chosen_task_tensor[n, k, :] = chosen_task_prev_k
+
+    performance = oracle_matrix[num_tasks, 1:]
+
+    n_trial = matrices.shape[0]
+    performance_list_trials = [performance.tolist() for _ in range(n_trial)]
+    # Generate time list trials filled with zeros
+    time_list_trials = [[0 for _ in range(K)] for _ in range(n_trial)]
+    return performance_list_trials, time_list_trials
+
 
 def Gaussian_process(target_contexts, matrix, context_range, weight=SLOPE_CONST*np.array([1, 1, 1])):
     ''' 
@@ -184,6 +258,8 @@ def Gaussian_process(target_contexts, matrix, context_range, weight=SLOPE_CONST*
                 i3 = np.where(var3_list == ttl_deltas[j, 2])[0][0]
                 y.append(J_gttl_gp[i1, i2, i3, j])
             y = np.array(y)
+            # print("x=",x)
+            # print("y=",y)
 
             GP_model.set_train_data(torch.from_numpy(x), torch.from_numpy(y), strict=False)
             train_gp(GP_model, GP_likelihood, torch.from_numpy(x), torch.from_numpy(y))
@@ -283,7 +359,7 @@ def Gaussian_process(target_contexts, matrix, context_range, weight=SLOPE_CONST*
         V_obs_tmp[chosen_mask, :, k] = matrix[chosen_mask, :]
         
         time_list.append(time.process_time() - time_start)
-        
+
     return list(J_gttl_gp.mean(axis=0).mean(axis=0).mean(axis=0)), time_list, None
         
 def test_sequential_type_algorithm(K, alg_class, target_contexts, matrix, context_range, learn_weight=False, lr=None, num_iter=None, convergence_threshold=None, num_samples=None):
@@ -301,7 +377,7 @@ def test_sequential_type_algorithm(K, alg_class, target_contexts, matrix, contex
         centroids, alg_switch, _ = alg.step()
 
         training_contexts = get_rounded_list(centroids)
-        training_indices = [three_d_to_1d(context, context_range) for context in training_contexts]
+        training_indices = [nd_to_1d(context, context_range) for context in training_contexts]
         
         if hasattr(alg, "update_GP"):
             alg.update_GP(matrix[training_indices[0], :])
@@ -367,7 +443,7 @@ def run_experiments(
     data_dir : str
         Directory path where the transfer_reward_matrix_trial{trial}.npy files are stored.
     n_samples : int
-        Number of samples to generate for each trial (via gen_samples_3d).
+        Number of samples to generate for each trial (via gen_samples_nd).
 
     Returns:
     --------
@@ -375,6 +451,7 @@ def run_experiments(
         A dictionary where keys are algorithm names (strings) and values are NumPy arrays
         of shape (N_trial, K) containing performance data for each trial and each step.
     """
+
     # Dictionary to store performance data for each algorithm across trials
     # Key will be a string (algorithm name), value will be a list of 1D arrays (length K).
     perf_data = {}
@@ -395,8 +472,7 @@ def run_experiments(
         time_data[alg_name] = []
         name_plot[alg_name] = names[i]
     # Generate your samples (adapt this call as needed)
-    samples = gen_samples_3d(context_range)
-    
+    samples = gen_samples_nd(context_range)
     # Run experiments for N_trial times
     min_value = np.inf
     max_value = -np.inf
@@ -470,7 +546,7 @@ def run_experiments(
                 trial_perf_list = []
                 trial_time_list = []
                 # Run test_alg_tabular on the chosen algorithm
-                if (alg_name=="SDMBTL"):
+                if (alg_name=="Combined_alg"):
                     perf, time_alg, alg_switch = test_alg_tabular(alg, K, samples, matrix, context_range)
                     alg_switch_data.append(alg_switch)
                 else:
@@ -486,12 +562,14 @@ def run_experiments(
 
     # New sequential oracle
     matrix_list = np.array(matrix_list)
-    perf_data["stochastic_oracle"], time_data["stochastic_oracle"] = stochastic_oracle(samples, matrix_list, context_range)
+    perf_data["stochastic_oracle"], time_data["stochastic_oracle"] = oracle_greedy_v2(samples, matrix_list, context_range)
     name_plot["stochastic_oracle"] = "Stochastic Oracle"
 
-    perf_data["myopic_oracle"], time_data["myopic_oracle"] = myopic_oracle(samples, matrix_list, context_range)
+    perf_data["myopic_oracle"], time_data["myopic_oracle"] = oracle_greedy_v4(samples, matrix_list, context_range)
     name_plot["myopic_oracle"] = "Myopic Oracle"
 
+    perf_data["oracle"], time_data["oracle"] = oracle(matrix_list, K)
+    name_plot["oracle"] = "Oracle"
     return perf_data, time_data, np.array(alg_switch_data)
 
 def run_bootstrap_experiments(
@@ -503,7 +581,8 @@ def run_bootstrap_experiments(
     REAL_DATA=None,
     names = None,
     context_range = None,
-    repeats = None
+    repeats = None,
+    trial_num = None
 ):
     """
     Runs multiple trials of the given algorithms, computes statistics, and plots the results.
@@ -520,7 +599,7 @@ def run_bootstrap_experiments(
     data_dir : str
         Directory path where the transfer_reward_matrix_trial{trial}.npy files are stored.
     n_samples : int
-        Number of samples to generate for each trial (via gen_samples_3d).
+        Number of samples to generate for each trial (via gen_samples_nd).
 
     Returns:
     --------
@@ -548,10 +627,8 @@ def run_bootstrap_experiments(
         perf_data[alg_name] = []
         time_data[alg_name] = []
         name_plot[alg_name] = names[i]
-        
     # Generate your samples (adapt this call as needed)
-    samples = gen_samples_3d(context_range)
-    
+    samples = gen_samples_nd(context_range)
     # Run experiments for N_trial times
     min_value = np.inf
     max_value = -np.inf
@@ -571,6 +648,7 @@ def run_bootstrap_experiments(
         elif REAL_DATA == "crop":
             matrix_path = f"{data_dir}/transfer_reward_matrix_crop_new_trial{trial}.npy"
             matrix = np.load(matrix_path)
+            # matrix = np.where(np.isnan(matrix), np.nanmean(matrix), matrix)
         elif "syn" in REAL_DATA:
             matrix_path = f"{data_dir}/transfer_reward_matrix_{REAL_DATA}_trial{trial}.npy"
             matrix = np.load(matrix_path)
@@ -598,11 +676,18 @@ def run_bootstrap_experiments(
         elif REAL_DATA == "crop":
             matrix_path = f"{data_dir}/transfer_reward_matrix_crop_new_trial{trial}.npy"
             matrix = np.load(matrix_path)
+            # matrix = np.where(np.isnan(matrix), np.nanmean(matrix), matrix)
         elif "syn" in REAL_DATA:
-            matrix_path = f"{data_dir}/transfer_reward_matrix_{REAL_DATA}_trial{trial}.npy"
-            matrix = np.load(matrix_path)
+            if trial_num is not None:
+                matrix_path = f"{data_dir}/transfer_reward_matrix_{REAL_DATA}_trial{trial_num}.npy"
+                matrix = np.load(matrix_path)
+            else:
+                matrix_path = f"{data_dir}/transfer_reward_matrix_{REAL_DATA}_trial{trial}.npy"
+                matrix = np.load(matrix_path)
         else:
             assert False, "Unknown REAL_DATA"
+        print("Load from "+matrix_path)
+        
         # Normalize the transfer matrix
         matrix = (matrix - min_value)/(max_value - min_value)
         matrix_list.append(matrix)
@@ -623,7 +708,7 @@ def run_bootstrap_experiments(
                 trial_perf_list = []
                 trial_time_list = []
                 # Run test_alg_tabular on the chosen algorithm
-                if (alg_name=="SDMBTL"):
+                if (alg_name=="Combined_alg_mountain"):
                     perf, time_alg, alg_switch = test_alg_tabular(alg, K, samples, matrix, context_range)
                     alg_switch_data.append(alg_switch)
                 else:
@@ -639,11 +724,14 @@ def run_bootstrap_experiments(
 
     # New sequential oracle
     matrix_list = np.array(matrix_list)
-    perf_data["stochastic_oracle"], time_data["stochastic_oracle"] = stochastic_oracle(samples, matrix_list, context_range)
+    perf_data["stochastic_oracle"], time_data["stochastic_oracle"] = oracle_greedy_v2(samples, matrix_list, context_range)
     name_plot["stochastic_oracle"] = "Stochastic Oracle"
 
-    perf_data["myopic_oracle"], time_data["myopic_oracle"] = myopic_oracle(samples, matrix_list, context_range)
+    perf_data["myopic_oracle"], time_data["myopic_oracle"] = oracle_greedy_v4(samples, matrix_list, context_range)
     name_plot["myopic_oracle"] = "Myopic Oracle"
+
+    perf_data["oracle"], time_data["oracle"] = oracle(matrix_list, K)
+    name_plot["oracle"] = "Oracle"
 
     return perf_data, time_data, np.array(alg_switch_data)
 
@@ -658,41 +746,41 @@ parser.add_argument("--xweight", type=str, default=None, help="Weight for the x-
 parser.add_argument("--yweight", type=str, default=None, help="Weight for the y-axis")
 parser.add_argument("--weightleft", type=str, default=None, help="Weight for the left side")
 parser.add_argument("--weightright", type=str, default=None, help="Weight for the right side")
+parser.add_argument("--trial", type=int, default=0, help="Number of trial")
 args = parser.parse_args()
 
-# Default parameter
 algs_to_test = [
-    SDMBTL,
-    GPMBTL,
-    "without_learning_weight",
-    # "without_random_restart",
-    random_select,
-    "independent_training",
-    random_mountain,
-    random_GP
+    Combined_alg_mountain,      # M/GP-MBTL (Ours)
+    MBTL,                       # M-MBTL
+    "without_learning_weight",  # GP-MBTL (Ours)
+    random_select,              # Random
+    "independent_training",     # Independent training
+    random_mountain,            # M-MBTL + random
+    random_GP                   # GP-MBTL + random
 ]
 
 names = [
-    "SD-MBTL",
-    "GP-MBTL",
-    "M-MBTL",
-    "Random",
-    "Independent training",
-    "M-MBTL + random",
-    "GP-MBTL + random"
+    "Combined+Mountain (Ours)", # M/GP-MBTL (Ours)
+    "MBTL",                     # M-MBTL
+    "SCC (Ours)",               # GP-MBTL (Ours)
+    "Random",                   # Random
+    "Independent training",     # Independent training
+    "M-MBTL + random",          # M-MBTL + random
+    "GP-MBTL + random"          # GP-MBTL + random
 ]
 
 repeats = {
-    "SD-MBTL": 1,
-    "GP-MBTL": 1,
-    "M-MBTL": 1,
-    "random_select": 50,
-    "independent_training": 1,
-    "random_mountain": 50,
-    "random_GP": 50
+    "Combined_alg_mountain": 1,    # M/GP-MBTL (Ours)
+    "MBTL": 1,                     # M-MBTL
+    "without_learning_weight": 1,  # GP-MBTL (Ours)
+    "random_select": 50,           # Random
+    "independent_training": 1,     # Independent training
+    "random_mountain": 1,          # M-MBTL + random
+    "random_GP": 1                 # GP-MBTL + random
 }
 
 if args.env == "cartpole":
+    # Cartpole
     if args.K >100:
         K = 15
     else:
@@ -715,6 +803,7 @@ if args.env == "cartpole":
     np.savez(f"results/cartpole_boot_new_time_{K}_slope={SLOPE_CONST}.npz", time_cartpole)
     np.save(f"results/cartpole_boot_new_algswitch_{K}_slope={SLOPE_CONST}.npy", alg_switch_cartpole)
 elif args.env == "walker":
+    # BipedalWalker
     if args.K > 256:
         K = 15
     else:
@@ -736,6 +825,7 @@ elif args.env == "walker":
     np.savez(f"results/walker_boot_new_time_{K}_slope={SLOPE_CONST}.npz", time_walker)
     np.save(f"results/walker_boot_new_algswitch_{K}_slope={SLOPE_CONST}.npy", alg_switch_walker)
 elif args.env == "intersectionZoo":
+    # IntersectionZoo
     if args.K > 216:
         K = 15
     else:
@@ -758,6 +848,7 @@ elif args.env == "intersectionZoo":
     np.savez(f"results/intersectionZoo_boot_new_time_{K}_slope={SLOPE_CONST}.npz", time_intersectionZoo)
     np.save(f"results/intersectionZoo_boot_new_algswitch_{K}_slope={SLOPE_CONST}.npy", alg_switch_intersectionZoo)
 elif args.env == "crop":
+    # Crop
     if args.K > 216:
         K = 15
     else:
@@ -808,6 +899,63 @@ elif args.env == "synt_g":
     np.savez(f"results/synt_g_noise{noise}_x_weight{x_weight}_y_weight{y_weight}_dist_left{left_weight}_dist_right{right_weight}_new_{K}_slope={SLOPE_CONST}.npz", results_syn_g)
     np.savez(f"results/synt_g_noise{noise}_x_weight{x_weight}_y_weight{y_weight}_dist_left{left_weight}_dist_right{right_weight}_new_time_{K}_slope={SLOPE_CONST}.npz", time_syn_g)
     np.save(f"results/synt_g_noise{noise}_x_weight{x_weight}_y_weight{y_weight}_dist_left{left_weight}_dist_right{right_weight}_new_algswitch_{K}_slope={SLOPE_CONST}.npy", alg_switch_syn_g)
+elif args.env == "synt_g_5d":
+    noise = args.noise
+    x_weight = args.xweight
+    y_weight = args.yweight
+    left_weight = args.weightleft
+    right_weight = args.weightright
+    trial = args.trial
+    K = args.K
+    # parser doesn't get the value starts with "-".
+    if left_weight == "3-3-3-3-3":
+        left_weight = "-3-3-3-3-3"
+
+    # Run the experiment
+    results_syn_g, time_syn_g, alg_switch_syn_g = run_bootstrap_experiments(
+        alg_list=algs_to_test,
+        K=K,
+        N_real_trial=0,
+        N_trial=1,
+        data_dir="data",  # folder with your .npy files
+        REAL_DATA=f"synt_5dim_x_weight{x_weight}_y_weight{y_weight}_dist_left{left_weight}",
+        names = names,
+        context_range=[5, 5, 5, 5, 5],    
+        repeats = repeats,
+        trial_num = trial
+    )
+    np.savez(f"results/synt_5dim_x_weight{x_weight}_y_weight{y_weight}_dist_left{left_weight}_new_{K}_slope={SLOPE_CONST}_trial{trial}.npz", results_syn_g)
+    np.savez(f"results/synt_5dim_x_weight{x_weight}_y_weight{y_weight}_dist_left{left_weight}_new_time_{K}_slope={SLOPE_CONST}_trial{trial}.npz", time_syn_g)
+    np.save(f"results/synt_5dim_x_weight{x_weight}_y_weight{y_weight}_dist_left{left_weight}_new_algswitch_{K}_slope={SLOPE_CONST}_trial{trial}.npy", alg_switch_syn_g)
+
+elif args.env == "synt_g_7d":
+    noise = args.noise
+    x_weight = args.xweight
+    y_weight = args.yweight
+    left_weight = args.weightleft
+    right_weight = args.weightright
+    trial = args.trial
+    K = args.K
+    # parser doesn't get the value starts with "-".
+    if left_weight == "3-3-3-3-3-3-3":
+        left_weight = "-3-3-3-3-3-3-3"
+
+    # Run the experiment
+    results_syn_g, time_syn_g, alg_switch_syn_g = run_bootstrap_experiments(
+        alg_list=algs_to_test,
+        K=K,
+        N_real_trial=0,
+        N_trial=1,
+        data_dir="data",  # folder with your .npy files
+        REAL_DATA=f"synt_7dim_x_weight{x_weight}_y_weight{y_weight}_dist_left{left_weight}",
+        names = names,
+        context_range=[4, 4, 4, 4, 4, 4, 4],    
+        repeats = repeats,
+        trial_num = trial
+    )
+    np.savez(f"results/synt_7dim_x_weight{x_weight}_y_weight{y_weight}_dist_left{left_weight}_new_{K}_slope={SLOPE_CONST}_trial{trial}.npz", results_syn_g)
+    np.savez(f"results/synt_7dim_x_weight{x_weight}_y_weight{y_weight}_dist_left{left_weight}_new_time_{K}_slope={SLOPE_CONST}_trial{trial}.npz", time_syn_g)
+    np.save(f"results/synt_7dim_x_weight{x_weight}_y_weight{y_weight}_dist_left{left_weight}_new_algswitch_{K}_slope={SLOPE_CONST}_trial{trial}.npy", alg_switch_syn_g)
 else:
     # assert
     assert False, "Invalid environment"

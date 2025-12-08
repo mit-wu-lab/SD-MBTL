@@ -1,24 +1,11 @@
 import numpy as np
 from sklearn.cluster import KMeans
-from sklearn.neighbors import NearestNeighbors
-from sklearn.gaussian_process import GaussianProcessRegressor
-from sklearn.gaussian_process.kernels import RBF, ConstantKernel as C
-
-from scipy.optimize import minimize
-
 import torch
 import torch.optim as optim
 import gpytorch
 
-from itertools import product
-from concurrent.futures import ThreadPoolExecutor
-
-
 SLOPE_CONST = 0.01
-WEIGHT = np.array([1.0, 1.0, 1.0])*SLOPE_CONST
 ORD = 1
-
-
 def generate_samples(d, n, ranges=None):
     """
     Generate equidistant sample points in a d-dimensional space defined by the provided ranges.
@@ -73,6 +60,74 @@ def one_d_index_to_nd(index_1d, length, d):
         remain = remain//length
     return index_nd
 
+def find_intersections_old_version(labels, length, d):
+    '''
+    labels: [length^d]
+    for each item in the labels:
+        if on the end boundaries: continue
+        find the neighbors
+        get the number of colors in the neighbors
+        get the number of boundaries nearby
+        if the sum is greater than d+1, include it in the list
+        if satisfy the criteria, include in the list
+    return the list of 1d indexes
+    '''
+
+    len_labels=len(labels)
+    candidates = []
+    for index_1d in range(len_labels):
+        index_nd = np.array(one_d_index_to_nd(index_1d, length, d))
+        if (index_nd==(length-1)).any():
+            continue
+
+        num_boundaries = np.count_nonzero(index_nd == 0) + np.count_nonzero(index_nd == length-2)
+        
+        # Array that contains 1d index of neighbors
+        neighbors = []
+        for dim_i in range(d):
+            neighbor_i_nd = index_nd.copy()
+            neighbor_i_nd[dim_i] += 1
+            neighbor_i_1d = nd_index_to_1d(neighbor_i_nd, length)
+            neighbors += [neighbor_i_1d]
+        # neighbors_nd = get_neighbors(index_nd)
+        # neighbors = [nd_index_to_1d(neig, length) for neig in neighbors_nd]
+        
+        color_array = labels[neighbors]
+        num_colors = len(np.unique(color_array))
+
+        if num_boundaries + num_colors >= d+1:
+            candidates += [index_1d]
+    return candidates
+
+def find_intersections(labels, length, d):
+    '''
+    labels: [length^d]
+    for each item in the labels:
+        if on the end boundaries: continue
+        find the neighbors
+        get the number of colors in the neighbors
+        get the number of boundaries nearby
+        if the sum is greater than d+1, include it in the list
+        if satisfy the criteria, include in the list
+    return the list of 1d indexes
+    '''
+
+    len_labels=len(labels)
+    candidates = []
+    for index_1d in range(len_labels):
+        index_nd = np.array(one_d_index_to_nd(index_1d, length, d))
+        num_boundaries = np.count_nonzero(index_nd == 0) + np.count_nonzero(index_nd == length-1)
+        
+        # Array that contains 1d index of neighbors
+        neighbors_nd = get_neighbors(index_nd, length)
+        neighbors = [nd_index_to_1d(neig, length) for neig in neighbors_nd]
+        
+        color_array = labels[neighbors]
+        num_colors = len(np.unique(color_array))
+
+        if num_boundaries + num_colors >= d+1:
+            candidates += [index_1d]
+    return candidates
 
 def get_neighbors(index_nd, length):
     neighbors = [index_nd]
@@ -95,9 +150,9 @@ def clustering(grid_points, K):
     labels = kmeans_alg.predict(grid_points)
     centroids = kmeans_alg.cluster_centers_
     return centroids, labels
-    
+
 class sequential_clustering_sampling:
-    def __init__(self, X, num_samples = 10, max_iterations=300, tolerance=1e-6, dist_weight=WEIGHT):
+    def __init__(self, X, num_samples = 10, max_iterations=300, tolerance=1e-6, dist_weight=None):
         ''' 
         X: [N, d]
         '''
@@ -109,6 +164,8 @@ class sequential_clustering_sampling:
         self.X = X.astype(float)
         self.N = X.shape[0]
         self.d = X.shape[1]
+        if dist_weight is None:
+            dist_weight = np.array([1.0]*self.d)*SLOPE_CONST
         self.num_samples = num_samples
         self.dist_weight = dist_weight
         self.remaining_X = self.X[:, :]
@@ -141,6 +198,7 @@ class sequential_clustering_sampling:
             return labels
 
         labels_new = labels.copy()
+
         labels_new[labels==0] = np.argmin(
                 np.linalg.norm(
                     (self.X[labels==0, np.newaxis, :] - centroids) * self.dist_weight, ord=ORD, axis=2
@@ -158,6 +216,7 @@ class sequential_clustering_sampling:
             1: replace to 0
         '''
         
+
         replace = np.argmin(
             np.linalg.norm(
                 (self.X[mask_other, np.newaxis, :] - centroids_vec) * self.dist_weight, ord=ORD, axis=2
@@ -192,13 +251,6 @@ class sequential_clustering_sampling:
         X: [N, d]
         centroids: [K, d]
         '''
-        # dif = self.X[:, np.newaxis] - centroids
-        # dif_left = dif.copy()
-        # dif_right = dif.copy()
-        # dif_left[dif_left>0]=0
-        # dif_right[dif_right<0]=0
-        # dist = dif_left * self.dist_weight[:3] + dif_right * self.dist_weight[3:]
-        # return np.linalg.norm(dist, ord=ORD, axis=2)
         return np.linalg.norm((self.X[:, np.newaxis] - centroids)*self.dist_weight, ord=ORD, axis=2)
     
     def get_new_centroids(self, new_centroid):
@@ -257,264 +309,6 @@ class sequential_clustering_sampling:
         self.labels_prev = best_labels
         return best_centroids, best_labels, None
 
-class sequential_clustering_general:
-    def __init__(self, X, num_samples = None, num_samples_axis = 10, max_iterations=300, tolerance=1e-6, dist_weight=WEIGHT):
-        ''' 
-        X: [N, d], target tasks
-        num_samples/length: number of points per axis
-        grid_points: [N^\prime, d], grid points to find the initial points as candidates
-        labels_grid_prev: the labels of grid points for the previous round
-        '''
-        self.n_clusters = 0
-        self.max_iterations = max_iterations
-        self.tolerance = tolerance
-        self.centroids_prev = None
-        self.X = X
-        self.N = X.shape[0]
-        self.d = X.shape[1]
-        self.length = num_samples_axis
-        self.range = self.get_range(X)
-        self.grid_points = generate_samples(self.d, self.length, ranges=self.range)
-        self.labels_grid_prev = None
-
-        # Initialization for the technique using the performance of previous round
-        self.prev_chosen_point = None
-        self.prev_init_points = None
-        self.prev_performance = None
-        self.prev_points_per_candidate = None
-        self.prev_reduced_performance = None
-        self.prev_performance_chosen = None
-
-        self.dist_weight = np.ones(self.d) if dist_weight is None else dist_weight
-
-    def get_range(self, X):
-        ''' 
-        X: [N, d] array
-        '''
-        d = X.shape[1]
-        return [(
-            np.min(X[:, i]),
-            np.max(X[:, i])
-        ) for i in range(d)]
-        
-    def get_new_labels_fast_vectorize(self, labels, centroids):
-        ''' 
-        compare the distance to original centroids (can be stored) and new centroids
-        '''
-        if self.n_clusters <= 1 or labels is None:
-            distances = self._calculate_distances(centroids)
-            labels = np.argmin(distances, axis=1)
-            return labels
-
-        labels_new = labels.copy()
-        labels_new[labels==0] = np.argmin(
-                np.linalg.norm(
-                    (self.X[labels==0, np.newaxis, :] - centroids)*self.dist_weight, ord=ORD, axis=2
-                ), axis=1
-            ) 
-        mask_other = labels!=0
-        len_other = mask_other.sum()
-        centroids_0 = np.tile(centroids[np.newaxis, 0, :], (len_other, 1, 1))
-        other_labels = labels[mask_other]
-        centroids_other = centroids[other_labels, np.newaxis, :]
-        centroids_vec = np.concatenate([centroids_other, centroids_0], axis=1)
-        ''' 
-        replace:
-            0: not replace
-            1: replace to 0
-        '''
-        replace = np.argmin(
-            np.linalg.norm(
-                (self.X[mask_other, np.newaxis, :] - centroids_vec)*self.dist_weight, ord=ORD, axis=2
-            ), axis=1
-        ).astype(bool)
-        labels_new[mask_other] = np.where(replace, 0, labels_new[mask_other])
-        return labels_new
-    
-    def fit(self, init_centroids):
-        centroids = init_centroids
-        labels = None
-
-        for i in range(self.max_iterations):
-            labels = self.get_new_labels_fast_vectorize(labels, centroids)
-
-            # Store the old centroids to check for convergence
-            old_centroids = centroids.copy()
-
-            # Update centroids based on the mean of assigned clusters
-            points = self.X[labels == 0]
-            if points.size > 0:
-                centroids[0] = points.mean(axis=0)
-            # Check for convergence (if centroids do not change)
-            if np.all(np.abs(centroids - old_centroids) < self.tolerance):
-                break
-        return centroids, labels
-    
-    def _calculate_distances(self, centroids):
-        ''' 
-        X: [N, d]
-        centroids: [K, d]
-        '''
-        # Calculate the Euclidean distance from each point to each centroid
-        return np.linalg.norm((self.X[:, np.newaxis] - centroids)*self.dist_weight, ord=ORD, axis=2)
-    
-    def get_new_centroids(self, new_centroid):
-        ''' 
-        Combine the new centroid with old centroids
-        '''
-        return np.concatenate([new_centroid, self.centroids_prev], axis = 0)
-
-    def try_candidates(self, candidates):
-        ''' 
-        Try each new centroid, test their performance, return the best candidate
-        '''
-        best_performance = 9999999
-        best_centroids = None
-        best_labels = None
-        for index_1d in candidates:
-            # x_candidate: [1, d]
-            x_candidate = self.X[index_1d][np.newaxis, :]
-            new_centroids = self.get_new_centroids(x_candidate)
-            performance, centroids, labels = self.performance(new_centroids)
-            if performance < best_performance:
-                best_performance = performance
-                best_centroids = centroids
-                best_labels = labels
-        return best_centroids, best_labels
-    
-    def performance(self, init_centroids):
-        centroids, labels = self.fit(init_centroids)
-        # distance: [N, K]
-        distance = self._calculate_distances(centroids)
-        min_distance = np.min(distance, axis=1)
-        performance = np.sum(min_distance)
-        return performance, centroids, labels
-
-    def get_random_init(self):
-        random_indices = np.random.choice(self.X.shape[0], 1, replace=False)
-        return self.X[random_indices]
-    
-    def intersect(self, point1, point2):
-        nodes_list = self.prev_init_points
-        n1 = nodes_list.index(point1)
-        n2 = nodes_list.index(point2)
-        # points1 and points2: 1d array containing indexes of cluster members
-        points1 = self.prev_points_per_candidate[n1]
-        points2 = self.prev_points_per_candidate[n2]
-        common_elements = np.intersect1d(points1, points2)
-        return common_elements.size > 0
-    
-    def get_performance_for_candidate(self, point):
-        ''' 
-        point is an 1d index
-        '''
-        performance = None
-        cluster_points = None
-
-        RECALCULATE = False
-        NEW_POINT = (not (point in self.prev_init_points)) if self.prev_init_points is not None else False
-        INTERSECT = self.intersect(point, self.prev_chosen_point) if (self.prev_init_points is not None and not NEW_POINT) else False
-        
-        if (
-            self.prev_init_points is None
-            or NEW_POINT
-            or INTERSECT
-        ):
-            RECALCULATE = True
-            # Get the initial point from grid points
-            grid_candidate = self.grid_points[point][np.newaxis, :]
-            new_centroids = self.get_new_centroids(grid_candidate)
-            performance, _, labels = self.performance(new_centroids)
-            cluster_points = np.where(labels == 0)
-        else:
-            prev_index = self.prev_init_points.index(point)
-            performance = self.prev_performance[prev_index] - self.prev_reduced_performance
-            cluster_points = self.prev_points_per_candidate[prev_index]
-        return performance, cluster_points, [RECALCULATE, NEW_POINT, INTERSECT]
-
-    def find_candidates(self):
-        '''
-        labels: [length^d]
-        for each item in the labels:
-            if on the end boundaries: continue
-            find the neighbors
-            get the number of colors in the neighbors
-            get the number of boundaries nearby
-            if the sum is greater than d+1, include it in the list
-            if satisfy the criteria, include in the list
-        return the list of 1d indexes
-        '''
-
-        len_labels=len(self.labels_grid_prev)
-        candidates = []
-        for index_1d in range(len_labels):
-            index_nd = np.array(one_d_index_to_nd(index_1d, self.length, self.d))
-            num_boundaries = np.count_nonzero(index_nd == 0) + np.count_nonzero(index_nd == self.length-1)
-            
-            # Array that contains 1d index of neighbors
-            neighbors_nd = get_neighbors(index_nd, self.length)
-            neighbors = [nd_index_to_1d(neig, self.length) for neig in neighbors_nd]
-            
-            color_array = self.labels_grid_prev[neighbors]
-            num_colors = len(np.unique(color_array))
-
-            if num_boundaries + num_colors >= self.d+1:
-                candidates += [index_1d]
-        return candidates
-    
-    def get_labels_grid_prev(self, centroids):
-        distance = np.linalg.norm((self.grid_points[:, np.newaxis] - centroids)*self.dist_weight, ord=ORD, axis=2)
-        return np.argmin(distance, axis=1)
-    
-    def step(self):
-        self.n_clusters += 1 
-
-        best_centroids = None
-        best_labels = None
-        performance_chosen = None
-
-        num_candidates = 0
-        num_recalculate = 0
-        num_new_points = 0
-        num_intersection = 0
-
-        if self.n_clusters == 1:
-            self.centroids = self.get_random_init()
-            performance_chosen, best_centroids, best_labels = self.performance(self.centroids)
-        else:
-            # init_points: 1d array
-            init_points = self.find_candidates() 
-            num_candidates = len(init_points)
-            performance = [0]*num_candidates
-            points_per_candidate = [None]*num_candidates
-
-            for n in range(num_candidates):
-                point = init_points[n]
-                performance[n], points_per_candidate[n], flags = self.get_performance_for_candidate(point)
-                
-                num_recalculate += int(flags[0])
-                num_new_points += int(flags[1])
-                num_intersection += int(flags[2])
-            
-            # Get the best candidate as chosen point, recalculate its performance
-            chosen_point_index = np.argmin(np.array(performance))
-            chosen_point = init_points[chosen_point_index]
-            grid_candidate = self.grid_points[chosen_point][np.newaxis, :]
-
-            centroids_init = self.get_new_centroids(grid_candidate)
-            performance_chosen, best_centroids, best_labels = self.performance(centroids_init)
-
-            self.prev_points_per_candidate = points_per_candidate
-            self.prev_init_points = init_points
-            self.prev_chosen_point = chosen_point
-            self.prev_performance = performance
-            self.prev_reduced_performance = self.prev_performance_chosen - performance_chosen
-
-        self.centroids_prev = best_centroids
-        self.labels_grid_prev = self.get_labels_grid_prev(best_centroids)
-        self.prev_performance_chosen = performance_chosen
-        return best_centroids, best_labels, [num_candidates, num_recalculate, num_new_points, num_intersection]
-
 class random_select:
     def __init__(self, X, num_samples=None):
         self.X = X
@@ -528,10 +322,10 @@ class random_select:
         return self.X[self.chosen_indices, :], None, None
     def update_weight(self, new_weight):
         pass
-
+    
 class sequential_clustering_sampling_fixed(sequential_clustering_sampling):
     ''' 
-    SCC algorithm with accleration techniques
+    M-MBTL algorithm with acceleration techniques
     '''
     def __init__(self, X, num_samples = 10, max_iterations=300, tolerance=1e-6):
         super().__init__(X, num_samples, max_iterations, tolerance)
@@ -552,8 +346,8 @@ class sequential_clustering_sampling_fixed(sequential_clustering_sampling):
         self.prev_reduced_performance = None
         self.prev_performance_chosen = None
         
-        # self.candidates = np.random.choice(self.X.shape[0], num_samples, replace=False).tolist()
-        self.candidates = list(range(self.X.shape[0]))
+        self.candidates = np.random.choice(self.X.shape[0], 400, replace=False).tolist() ##-#
+        # self.candidates = list(range(self.X.shape[0]))
 
         
     def find_candidates(self):
@@ -580,7 +374,6 @@ class sequential_clustering_sampling_fixed(sequential_clustering_sampling):
             grid_candidate = self.X[point][np.newaxis, :]
             new_centroids = self.get_new_centroids(grid_candidate)
             
-            # performance, centroids, labels = self.performance(new_centroids, round_to_nearest=True)
             performance, centroids, labels = self.performance(new_centroids)
             cluster_points = np.where(labels == 0)
             optimized_candidate = centroids[0]
@@ -634,276 +427,6 @@ class sequential_clustering_sampling_fixed(sequential_clustering_sampling):
                 num_intersection += int(flags[2])
                 
             chosen_point_index = np.argmin(np.array(performance))
-            chosen_point = init_points[chosen_point_index]
-            x_candidate = self.X[chosen_point][np.newaxis, :]
-
-            centroids_init = self.get_new_centroids(x_candidate)
-            performance_chosen, best_centroids, best_labels = self.performance(centroids_init, round_to_nearest=True)
-
-            self.prev_points_per_candidate = points_per_candidate
-            self.prev_optimized_candidate = optimized_candidate
-            self.prev_init_points = init_points
-            self.prev_chosen_point = chosen_point
-            self.prev_performance = performance
-            self.prev_reduced_performance = self.prev_performance_chosen - performance_chosen
-
-        self.centroids_prev = best_centroids
-        self.labels_prev = best_labels
-        self.prev_performance_chosen = performance_chosen
-        return best_centroids, best_labels, [num_candidates, num_recalculate, num_new_points, num_intersection]
-
-def get_weight(M, training_contexts, target_contexts, lr=1e-4, num_iter=1000, convergence_threshold=1e-3, init_weight=list(WEIGHT), max_reward=500):
-    N_source = training_contexts.shape[0]
-    N_target = target_contexts.shape[0]
-    differences = np.abs((training_contexts[:, np.newaxis, :] - target_contexts[np.newaxis, : :]))
-    differences = np.concatenate([np.ones([N_source, N_target, 1]), differences], axis=2)
-    w = get_slope(M, differences)
-    return -w[1:], [w[0]]
-
-def get_weight_nonconstant_J(M, training_contexts, target_contexts, lr=1e-4, num_iter=1000, convergence_threshold=1e-3, init_weight:list=[1, 1, 1], J_training=None):
-    ''' 
-    Learn the distance weight
-    '''
-    M = torch.from_numpy(M).float()  # Ensure the tensor has the correct dtype
-    training_contexts = torch.from_numpy(training_contexts).float()
-    target_contexts = torch.from_numpy(target_contexts).float()
-    N = M.shape[1]
-    w = torch.tensor(init_weight, dtype=torch.float32, requires_grad=True)
-    J_training_matrix = torch.from_numpy(np.tile(J_training[:, np.newaxis], N)).float()
-
-    optimizer = optim.Adam([w], lr=lr)
-    differences = (training_contexts.unsqueeze(1) - target_contexts.unsqueeze(0)).abs()
-    prev_w = w.clone().detach()
-    for iteration in range(num_iter):
-        optimizer.zero_grad()
-        l1_norms = differences @ w
-        R = - l1_norms + J_training_matrix  # shape (k, N)
-        loss = ((M - R)**2).sum()
-        loss.backward()
-        optimizer.step()
-
-        with torch.no_grad():
-            delta_w = torch.norm(w - prev_w).item()
-            if delta_w < convergence_threshold:
-                break
-            prev_w = w.clone()
-    return w.detach().numpy()
-
-
-def get_weight_left_right(M, training_contexts, target_contexts, lr=1e-4, num_iter=5000, convergence_threshold=1e-3, init_weight:list=[-1, -1, -1, 1, 1, 1], max_reward=500):
-    M = torch.from_numpy(M).float()  # Ensure the tensor has the correct dtype
-    training_contexts = torch.from_numpy(training_contexts).float()
-    target_contexts = torch.from_numpy(target_contexts).float()
-    d = training_contexts.shape[1]
-    w = torch.tensor(init_weight, dtype=torch.float32, requires_grad=True)
-    b = torch.tensor([max_reward], dtype=torch.float32, requires_grad=True)
-    #  optimizer = optim.Adam([w, b], lr=lr, weight_decay=0.001)  # Try smaller lr
-    differences = training_contexts.unsqueeze(1) - target_contexts.unsqueeze(0)
-    differences_left = torch.where(differences > 0, torch.tensor(0.0), differences)
-    differences_right = torch.where(differences < 0, torch.tensor(0.0), differences)
-    
-    optimizer = optim.Adam([w, b], lr=lr)
-    prev_w = w.clone().detach()
-    prev_b = b.clone().detach()
-    
-    
-    for iteration in range(num_iter):
-        optimizer.zero_grad()
-        l1_norms = differences_left @ w[:3] + differences_right @ w[3:]
-        R = - l1_norms + b  # shape (N, M)
-        loss = ((M - R)**2).sum()
-        loss.backward()
-        optimizer.step()
-        # Check for convergence
-        with torch.no_grad():
-            delta_w = torch.norm(w - prev_w).item()
-            delta_b = torch.norm(b-prev_b).item()
-            if delta_w < convergence_threshold and delta_b<convergence_threshold:
-                break
-            prev_w = w.clone()
-            prev_b = b.clone()
-    
-    return np.maximum(w.detach().numpy(), 0), b.detach().numpy()
-
-class optimizer_solution:
-    def __init__(self, X, num_samples=None, dist_weight=WEIGHT):
-        self.X = X.astype(float)
-        self.N = X.shape[0]
-        self.d = X.shape[1]
-        self.dist_weight = dist_weight
-        self.centroids = np.empty((0, self.d))
-
-    def update_weight(self, new_weight):
-        # self.dist_weight = np.maximum(new_weight, 0.001)
-        self.dist_weight = new_weight
-
-    def objective_function(self, new_centroid):
-        # new_centroid: np.array, [d]
-        # centroids: np.array, [K, d]
-        centroids = np.concatenate([new_centroid[np.newaxis, :], self.centroids], axis=0)
-        # dist: np.array, [N, K]
-
-        # dif = self.X[:, np.newaxis] - centroids
-        # dif_left = dif.copy()
-        # dif_right = dif.copy()
-        # dif_left[dif_left>0]=0
-        # dif_right[dif_right<0]=0
-        # dist = dif_left * self.dist_weight[:3] + dif_right * self.dist_weight[3:]
-        # dist = np.linalg.norm(dist, ord=ORD, axis=2)
-
-        dist = np.linalg.norm((self.X[:, np.newaxis]-centroids)*self.dist_weight, ord=ORD, axis=2)
-        loss = np.sum(np.min(dist, axis=1))
-        return loss
-
-    def step(self):
-        init_point = self.X[np.random.choice(self.N), :]
-        result = minimize(self.objective_function, init_point, method='L-BFGS-B', options={'maxiter': 2000}).x
-        result = np.vectorize(round)(result)
-        self.centroids = np.concatenate([result[np.newaxis, :], self.centroids], axis=0)
-        return self.centroids, None, None
-
-class GP_SCC(sequential_clustering_sampling_fixed):
-    def __init__(self, X, num_samples, max_iterations=300, tolerance=1e-6):
-        ''' 
-        x: [k, 3] array
-        y: [k] array
-        X: [N, 3] array
-        gp_mean/std: [N] array
-        '''
-        super().__init__(X, num_samples, max_iterations, tolerance)
-        noise_std = 0.001
-        n_restarts_optimizer = 15
-        kernel = C(1.0, (1e-3, 1e3)) * RBF(length_scale=1.0, length_scale_bounds=(1e-2, 1e2))
-        self.gaussian_process = GaussianProcessRegressor(
-            kernel=kernel, 
-            alpha=noise_std**2, 
-            n_restarts_optimizer=n_restarts_optimizer
-        )
-        self.y = np.array([])
-        # self.weight_penalty = 0.0043
-        # x: [k, 3] array
-        # y: [k] array
-        # X: [N, 3] array
-        # gp_mean/std: [N] array
-
-    def update_GP(self, y_k):
-        self.y = np.insert(self.y, 0, y_k)
-        x = self.centroids_prev
-        self.gaussian_process.fit(x, self.y)
-    
-    # def get_penalty(self, gp_pred, changed_points, gp_std):
-    #     ''' 
-    #     gp_pred: predicted J of the chosen point
-    #     changed_points: the cluster points that changed the labels
-    #     self.labels_prev: previous labels, [N] array
-    #     self.y: real J of previous training tasks, [k] array
-    #     '''
-    #     num_points = changed_points.shape[0] 
-    #     prev_labels_changed_points = self.labels_prev[changed_points]
-    #     prev_J_list = self.y[prev_labels_changed_points]
-    #     # print("prev_J_mean:", np.mean(prev_J_list), "gp_pred:", gp_pred)
-
-    #     dif = self.X[changed_points] - self.centroids_prev[prev_labels_changed_points]
-    #     dif_left = dif.copy()
-    #     dif_right = dif.copy()
-    #     dif_left[dif_left>0]=0
-    #     dif_right[dif_right<0]=0
-    #     dist = dif_left @ self.dist_weight[:3] + dif_right @ self.dist_weight[3:]
-
-    #     # dist = (np.abs(self.X[changed_points] - self.centroids_prev[prev_labels_changed_points])) @ self.dist_weight
-        
-    #     ''' 
-    #     J = - sum(min_dist[n]) + (J_pred_mean + beta * J_pred_std) * num_points - sum(J[n] - min_dist[n])
-    #     J_new = np.mean(np.max(J_pred_mean + beta * J_pred_std - J[n] - min_dist[n], 0))
-    #     '''
-    #     prev_J_sum = np.sum(prev_J_list)
-    #     beta = np.sqrt(np.log(self.n_clusters+1))
-    #     improved_J = (gp_pred + beta * gp_std) * num_points - prev_J_sum + np.sum(dist)
-    #     return improved_J
-    
-    def acquisition_func(self, J_pred_mean, J_pred_std, x_k, points):
-        ''' 
-        J_new = np.sum(np.max(J_pred_mean + beta * J_pred_std - min_dist_new[n] - (J_prev[n] - min_dist_prev[n]), 0))
-        '''
-        num_points = points.shape[0] 
-        prev_labels_changed_points = self.labels_prev[points]
-        J_prev = self.y[prev_labels_changed_points]
-        min_dist_prev = (np.abs(self.X[points] - self.centroids_prev[prev_labels_changed_points])) @ self.dist_weight
-        
-        beta = np.sqrt(np.log(self.n_clusters))
-        beta=0
-        J_now = J_pred_mean + beta * J_pred_std
-        min_dist_now = (np.abs(self.X[points] - x_k)) @ self.dist_weight
-        acquisition = np.sum(np.maximum(
-            0, 
-            (J_now - min_dist_now) - (J_prev - min_dist_prev)
-        ))
-        return -acquisition
-    
-    def acquisition_func_all_points(self, J_pred_mean, J_pred_std, x_k, points):
-        ''' 
-        TODO: calculate the increased J of all points
-        '''
-        J_prev = self.y[self.labels_prev]
-        min_dist_prev = (np.abs(self.X - self.centroids_prev[self.labels_prev])) @ self.dist_weight
-        
-        beta = np.sqrt(np.log(self.n_clusters+1))
-        J_now = J_pred_mean + beta * J_pred_std
-        min_dist_now = (np.abs(self.X - x_k)) @ self.dist_weight
-        acquisition = np.sum(np.maximum(
-            0, 
-            (J_now - min_dist_now) - (J_prev - min_dist_prev)
-        ))
-        return -acquisition
-
-    def add_GP_penalty(self, optimized_candidate, points_per_candidate):
-        optimized_candidate = np.array(optimized_candidate)
-        num_candidates = optimized_candidate.shape[0]
-        gp_mean, gp_std = self.gaussian_process.predict(optimized_candidate, return_std=True)
-        return [self.acquisition_func(gp_mean[i], gp_std[i], optimized_candidate[i, :], points_per_candidate[i][0]) for i in range(num_candidates)]
-
-
-    # def add_GP_penalty(self, performance, optimized_candidate, points_per_candidate):
-        
-    #     optimized_candidate = np.array(optimized_candidate)
-    #     gp_mean, gp_std = self.gaussian_process.predict(optimized_candidate, return_std=True)
-    #     return [performance[i] - self.get_penalty(gp_mean[i], points_per_candidate[i][0], gp_std[i]) for i in range(len(performance))]
-
-    def step(self):
-        self.n_clusters += 1 
-
-        best_centroids = None
-        best_labels = None
-        performance_chosen = None
-
-        num_candidates = 0
-        num_recalculate = 0
-        num_new_points = 0
-        num_intersection = 0
-
-        if self.n_clusters == 1:
-            self.centroids = self.get_random_init()
-            performance_chosen, best_centroids, best_labels = self.performance(self.centroids, round_to_nearest=True)
-        else:
-            # init_points: [num_candidates]
-            # point: init_points[n]
-            # x_{k,i}: self.X[point][np.new_axis, :]
-            init_points = self.find_candidates() 
-            num_candidates = len(init_points)
-            performance = [0]*num_candidates
-            points_per_candidate = [None]*num_candidates
-            optimized_candidate = [None]*num_candidates   
-            for n in range(num_candidates):
-                point = init_points[n]
-                performance[n], points_per_candidate[n], optimized_candidate[n], flags = self.get_performance_for_candidate(point)
-                
-                num_recalculate += int(flags[0])
-                num_new_points += int(flags[1])
-                num_intersection += int(flags[2])
-
-            # Add the GP penalty here
-            performance_with_GP = self.add_GP_penalty(optimized_candidate, points_per_candidate)
-            chosen_point_index = np.argmin(np.array(performance_with_GP))
             chosen_point = init_points[chosen_point_index]
             x_candidate = self.X[chosen_point][np.newaxis, :]
 
@@ -976,14 +499,19 @@ def predict_gp(model, likelihood, test_x):
         std = pred_dist.stddev
     return mean, std
 
-class GPMBTL:
-    def __init__(self, X, num_samples, dist_weight=SLOPE_CONST*np.array([-1, -1, -1, 1, 1, 1])):
+class MBTL:
+    ''' 
+    GP-MBTL algorithm
+    '''
+    def __init__(self, X, num_samples, dist_weight=None):
         self.X = X.astype(float)
         self.d = X.shape[1]
         self.N = X.shape[0]
+        if dist_weight is None:
+            dist_weight = np.array([-1.0]*self.d+[1.0]*self.d)*SLOPE_CONST
         self.dist_weight_GP = dist_weight
         self.k=0
-        self.GP_model, self.GP_likelihood = initialize_gp(torch.empty((0, 3)), torch.empty((0,)))
+        self.GP_model, self.GP_likelihood = initialize_gp(torch.empty((0, self.d)), torch.empty((0,)))
         self.x_train = np.empty((0, self.d))
         self.x_indices = np.empty((0,), dtype=int)
         self.y_train = np.empty((0,))
@@ -994,8 +522,8 @@ class GPMBTL:
         x_index = self.x_indices[0]
         yk = J_row[x_index]
         self.y_train = np.insert(self.y_train, 0, yk)
-        self.GP_model.set_train_data(torch.from_numpy(self.x_train), torch.from_numpy(self.y_train), strict=False)
-        train_gp(self.GP_model, self.GP_likelihood, torch.from_numpy(self.x_train), torch.from_numpy(self.y_train))
+        self.GP_model.set_train_data(torch.from_numpy(self.x_train).float(), torch.from_numpy(self.y_train).float(), strict=False)
+        train_gp(self.GP_model, self.GP_likelihood, torch.from_numpy(self.x_train).float(), torch.from_numpy(self.y_train).float())
 
         # Add weight learning here 
         self.dist_weight_GP = self.get_slope_from_J()
@@ -1006,7 +534,7 @@ class GPMBTL:
         diff_right = diff.copy()
         diff_left[diff_left>0]=0
         diff_right[diff_right<0]=0
-        return -(diff_left @ self.dist_weight_GP[:3] + diff_right @ self.dist_weight_GP[3:])
+        return -(diff_left @ self.dist_weight_GP[:self.d] + diff_right @ self.dist_weight_GP[self.d:])
 
     def find_xk(self):
         ''' 
@@ -1021,7 +549,6 @@ class GPMBTL:
         gp_mean = gp_mean.numpy()
         gp_std = gp_std.numpy()
         lambdas = np.sqrt(np.log(self.k))
-        # dist_matrix = np.abs(self.X[:, np.newaxis, :] - self.X[np.newaxis, :, :]) @ self.dist_weight
 
         dist_matrix = self.get_dist()
 
@@ -1091,7 +618,6 @@ def get_slope(A, B):
     k, N, d = B.shape
     A_flat = A.flatten()
     B_flat = B.reshape(k * N, d)
-    # use pinv instead of inv to avoid singular matrix error
     w = np.linalg.pinv(B_flat.T @ B_flat) @ B_flat.T @ A_flat
     return w
 
@@ -1101,15 +627,14 @@ def column_norm(matrix):
 
 def subtract_mean(matrix):
     return matrix - np.mean(matrix, axis=0)
-
-class SDMBTL(GPMBTL, sequential_clustering_sampling_fixed):
+    
+class Combined_alg_mountain(MBTL, sequential_clustering_sampling_fixed):
     ''' 
-    Modification:
-    Learn weight for GP-MBTL (1, 6d weight; 2, update weight in slope criteria)
+    M/GP-MBTL (Ours) algorithm
     '''
     def __init__(self, X, num_samples = 10, max_iterations=300, tolerance=1e-6):
         sequential_clustering_sampling_fixed.__init__(self, X, num_samples, max_iterations, tolerance)
-        GPMBTL.__init__(self, X, num_samples)
+        MBTL.__init__(self, X, num_samples)
         self.constant = True
         self.positive_slope = True
     
@@ -1163,7 +688,7 @@ class SDMBTL(GPMBTL, sequential_clustering_sampling_fixed):
         w = get_slope(J_matrix, B_whole)
         w = w[1:]
         w_bool = w>0
-        w_diff_sign = w_bool[:3] ^ w_bool[3:]
+        w_diff_sign = w_bool[:self.d] ^ w_bool[self.d:]
         return np.mean(w_diff_sign.astype(int))>0.5
 
     def detect(self):
@@ -1175,14 +700,13 @@ class SDMBTL(GPMBTL, sequential_clustering_sampling_fixed):
         x_index = self.x_indices[0]
         yk = J_row[x_index]
         self.y_train = np.insert(self.y_train, 0, yk)
-
         if self.k>5:
             self.detect()
             if not (self.constant and self.positive_slope):
                 self.GP_model.set_train_data(torch.from_numpy(self.x_train), torch.from_numpy(self.y_train), strict=False)
                 train_gp(self.GP_model, self.GP_likelihood, torch.from_numpy(self.x_train), torch.from_numpy(self.y_train))
 
-    def update_M_from_GP(self):
+    def update_SCC_from_MBTL(self):
         self.n_clusters += 1
         # Update variables in SCC
         self.x_train
@@ -1195,7 +719,7 @@ class SDMBTL(GPMBTL, sequential_clustering_sampling_fixed):
         self.labels_prev = labels
         self.prev_performance_chosen = performance
 
-    def update_GP_from_M(self):
+    def update_MBTL_from_SCC(self):
         self.k += 1
         self.x_train = self.centroids_prev
         xk = self.x_train[0, :]
@@ -1204,13 +728,12 @@ class SDMBTL(GPMBTL, sequential_clustering_sampling_fixed):
 
     def step(self):
         # Detect if assumptions are satisfied by the J_matrix we have now
-        print("Constant:", self.constant, "slope:", self.positive_slope)
         if self.constant and self.positive_slope:
-            return self.step_MMBTL()
+            return self.step_SCC()
         else:
-            return self.step_GPMBTL()
+            return self.step_MBTL()
     
-    def step_MMBTL(self):
+    def step_SCC(self):
         self.n_clusters += 1 
 
         best_centroids = None
@@ -1249,12 +772,12 @@ class SDMBTL(GPMBTL, sequential_clustering_sampling_fixed):
         self.centroids_prev = best_centroids
         self.labels_prev = best_labels
         self.prev_performance_chosen = performance_chosen
-        self.update_GP_from_M()
+        self.update_MBTL_from_SCC()
 
         # The second return value means whether Hybrid uses SC-MBTL
         return best_centroids, True, None
 
-    def step_GPMBTL(self):
+    def step_MBTL(self):
         self.k += 1
         if self.k == 1:
             xk = np.round(np.mean(self.X, axis=0))
@@ -1265,7 +788,7 @@ class SDMBTL(GPMBTL, sequential_clustering_sampling_fixed):
             xk, xk_index = self.find_xk()
         self.x_train = np.concatenate([xk[np.newaxis, :], self.x_train], axis=0)
         self.x_indices = np.insert(self.x_indices, 0, xk_index)
-        self.update_M_from_GP()
+        self.update_SCC_from_MBTL()
 
         # The second return value means whether Hybrid uses SC-MBTL
         return self.x_train, False, None
@@ -1280,24 +803,31 @@ class SDMBTL(GPMBTL, sequential_clustering_sampling_fixed):
 
         self.x_train = np.concatenate([xk[np.newaxis, :], self.x_train], axis=0)
         self.x_indices = np.insert(self.x_indices, 0, xk_index)
-        self.update_M_from_GP()
+        self.update_SCC_from_MBTL()
         return self.x_train, None, None
-class random_mountain(SDMBTL):
+
+class random_mountain(Combined_alg_mountain):
+    ''' 
+    M-MBTL + random algorithm
+    '''
     def step(self):
         ''' 
         M-MBTL is deigned to solve problems with constant 
         '''
         if self.constant and self.positive_slope:
-            return self.step_MMBTL()
+            return self.step_SCC()
         else:
             return self.step_random()
 
-class random_GP(SDMBTL):
+class random_GP(Combined_alg_mountain):
+    ''' 
+    GP-MBTL + random algorithm
+    '''
     def step(self):
         ''' 
         GP-MBTL is designed to solve the problems that have positive slopes
         '''
         if self.positive_slope:
-            return self.step_GPMBTL()
+            return self.step_MBTL()
         else:
             return self.step_random()

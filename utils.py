@@ -458,10 +458,18 @@ def sample_integer_3d(list_range, N=1000):
     return samples
 
 def gen_samples_3d(context_range):
-    return np.array([[i, j, k] for i in range(context_range[0]) for j in range(context_range[1]) for k in range(context_range[2])])
+    return gen_samples_nd(context_range)
+    # return np.array([[i, j, k] for i in range(context_range[0]) for j in range(context_range[1]) for k in range(context_range[2])])
 
 def three_d_to_1d(context, context_range):
-    return context[0] * context_range[2] * context_range[1] + context[1]*context_range[2] + context[2]
+    return nd_to_1d(context, context_range)
+    # return context[0] * context_range[2] * context_range[1] + context[1]*context_range[2] + context[2]
+
+def nd_to_1d(context, context_range):
+    context = np.array(context)
+    context_range = np.array(context_range)
+    strides = np.cumprod([1] + list(context_range[::-1][:-1]))[::-1]
+    return int(np.dot(context, strides))
 
 def get_performance(training_contexts, target_contexts, matrix, context_range):
     ''' 
@@ -487,6 +495,9 @@ def gen_matrix_vectorized(noise=0, weight=None, b=500):
     matrix = -distances_with_noise + b  # Shape: (1000, 1000)
     return matrix
 
-
-
+def gen_samples_nd(context_range: list):
+    grids = np.meshgrid(
+        *[np.arange(r) for r in context_range], indexing='ij'
+    )
+    return np.stack(grids, axis=-1).reshape(-1, len(context_range))
 

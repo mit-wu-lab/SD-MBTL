@@ -21,7 +21,9 @@ SD-MBTL/
 ├── environment.yml         # Environment file
 ├── README.md               # This file
 ├── plot_figure.ipynb       # Jupyter notebook for plotting figures
-├── s-run-main-synt.sh      # Shell script for running main.py with synthetic data
+├── s-run-main-synt.sh      # Shell script for running main.py with 3d synthetic data
+├── s-run-main-synt5d.sh    # Shell script for running main.py with 5d synthetic data
+├── s-run-main-synt7d.sh    # Shell script for running main.py with 7d synthetic data
 ├── s-run-main.sh           # Shell script for running main.py with real-world data
 └── LICENSE                 # License
 
