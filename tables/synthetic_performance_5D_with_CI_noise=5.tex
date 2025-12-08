@@ -1,0 +1,31 @@
+
+\begin{table*}[!ht]
+\begin{small}
+\begin{center}
+  \caption{Performance comparison on 5D Synthetic Data ($\epsilon=\mathcal{N}(0, 5^2)$) with K=50.}
+  \label{tab:synthetic-performance-5D-noise5}
+  \begin{tabular}{lllcccc|c}
+    \toprule
+    \textbf{$f(x)$} & \textbf{$g(y)$} & \textbf{$h(x,y)$}  & \textbf{Random} & \textbf{GP-MBTL} & \textbf{M-MBTL} & \textbf{M/GP-MBTL (Ours)} & \textbf{Myopic Oracle}\\
+    \midrule
+    Linear & Linear & $L_1$ norm & {0.5996} $\pm$ 0.0036 & \textbf{0.6229} $\pm$ 0.0003 & {0.5993} $\pm$ 0.0009 & {0.6122} $\pm$ 0.0092 & {0.6265} $\pm$ 0.0001\\
+    Linear & Linear & Non-distance 1 & \textbf{0.6142} $\pm$ 0.0011 & {0.6120} $\pm$ 0.0020 & \textbf{0.6156} $\pm$ 0.0002 & \textbf{0.6160} $\pm$ 0.0006 & {0.6236} $\pm$ 0.0003\\
+    Linear & Linear & Non-distance 2 & {0.6128} $\pm$ 0.0017 & {0.6140} $\pm$ 0.0018 & {0.6142} $\pm$ 0.0005 & \textbf{0.6172} $\pm$ 0.0007 & {0.6262} $\pm$ 0.0005\\
+    Linear & Constant & $L_1$ norm & {0.7348} $\pm$ 0.0039 & \textbf{0.7440} $\pm$ 0.0076 & {0.7344} $\pm$ 0.0011 & \textbf{0.7461} $\pm$ 0.0055 & {0.7626} $\pm$ 0.0002\\
+    Linear & Constant & Non-distance 1 & \textbf{0.6891} $\pm$ 0.0015 & {0.6810} $\pm$ 0.0055 & \textbf{0.6910} $\pm$ 0.0003 & \textbf{0.6910} $\pm$ 0.0010 & {0.7016} $\pm$ 0.0005\\
+    Linear & Constant & Non-distance 2 & \textbf{0.7007} $\pm$ 0.0026 & {0.6930} $\pm$ 0.0072 & \textbf{0.7024} $\pm$ 0.0006 & \textbf{0.7012} $\pm$ 0.0028 & {0.7175} $\pm$ 0.0004\\
+    Constant & Linear & $L_1$ norm & {0.7049} $\pm$ 0.0007 & {0.6887} $\pm$ 0.0082 & \textbf{0.7090} $\pm$ 0.0004 & \textbf{0.7089} $\pm$ 0.0003 & {0.7117} $\pm$ 0.0004\\
+    Constant & Linear & Non-distance 1 & {0.6982} $\pm$ 0.0062 & \textbf{0.7463} $\pm$ 0.0005 & {0.6917} $\pm$ 0.0023 & {0.7421} $\pm$ 0.0013 & {0.7482} $\pm$ 0.0002\\
+    Constant & Linear & Non-distance 2 & {0.7000} $\pm$ 0.0019 & \textbf{0.7457} $\pm$ 0.0022 & {0.6987} $\pm$ 0.0015 & \textbf{0.7441} $\pm$ 0.0019 & {0.7503} $\pm$ 0.0001\\
+    Constant & Constant & $L_1$ norm & {0.7374} $\pm$ 0.0006 & \textbf{0.7411} $\pm$ 0.0009 & \textbf{0.7423} $\pm$ 0.0005 & \textbf{0.7422} $\pm$ 0.0003 & {0.7457} $\pm$ 0.0005\\
+    Constant & Constant & Non-distance 1 & {0.7482} $\pm$ 0.0100 & \textbf{0.8134} $\pm$ 0.0012 & {0.7396} $\pm$ 0.0024 & \textbf{0.8129} $\pm$ 0.0002 & {0.8150} $\pm$ 0.0003\\
+    Constant & Constant & Non-distance 2 & {0.7548} $\pm$ 0.0036 & \textbf{0.8189} $\pm$ 0.0002 & {0.7531} $\pm$ 0.0018 & {0.8167} $\pm$ 0.0008 & {0.8202} $\pm$ 0.0001\\
+\midrule
+\multicolumn{3}{c}{\textbf{Aggregated Performance}} & {0.0000} $\pm$ 0.0327 & {0.1528} $\pm$ 0.2651 & {0.1124} $\pm$ 0.0571 & \textbf{0.5327} $\pm$ 0.0905 & {1.0000} $\pm$ 0.0121 \\
+    \bottomrule
+  \end{tabular}
+  \end{center}
+  \scriptsize{* \textit{Note}: Values are reported as the mean performance ± half the width of the 95\% confidence interval. Rows shaded in light gray indicate the synthetic settings that satisfy our proposed \textsc{Mountain} structure assumption. Bold values represent the highest value(s) within the statistically significant range for each task, excluding the oracle.}
+  \end{small}
+\end{table*}
+

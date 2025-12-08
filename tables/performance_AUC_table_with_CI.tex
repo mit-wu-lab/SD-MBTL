@@ -1,0 +1,22 @@
+\begin{table*}[!ht]
+    \begin{small}
+\begin{center}
+  \caption{Performance comparison of different methods on CMDP benchmarks}
+  \label{tab:performance}
+  \begin{tabular}{ccccccc|c}
+    \toprule
+    \multicolumn{1}{c}{\begin{tabular}[c]{@{}c@{}}\textbf{Benchmark}\\\textbf{(CMDP)}\end{tabular}} & \multicolumn{1}{c}{\textbf{Independent}} & \multicolumn{1}{c}{\textbf{Multi-task}} & \multicolumn{1}{c}{\textbf{Random}} & \multicolumn{1}{c}{\textbf{GP-MBTL}} & \multicolumn{1}{c}{\begin{tabular}[c]{@{}c@{}}\textbf{M-MBTL}\\\textbf{(Ours)}\end{tabular}} & \multicolumn{1}{c}{\begin{tabular}[c]{@{}c@{}}\textbf{M/GP-MBTL}\\\textbf{(Ours)}\end{tabular}} & \multicolumn{1}{c}{\textbf{Myopic Oracle}} \\
+    \midrule
+\begin{tabular}[c]{@{}c@{}}\textbf{CartPole}\\($K=12$)\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.9346\\$\pm$ 0.0003\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.9246\\$\pm$ 0.0365\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.9502\\$\pm$ 0.0049\end{tabular} & \begin{tabular}[c]{@{}c@{}}\textbf{0.9542}\\$\pm$ 0.0065\end{tabular} & \begin{tabular}[c]{@{}c@{}}\textbf{0.9612}\\$\pm$ 0.0056\end{tabular} & \begin{tabular}[c]{@{}c@{}}\textbf{0.9612}\\$\pm$ 0.0055\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.9939\\$\pm$ 0.0005\end{tabular} \\
+\begin{tabular}[c]{@{}c@{}}\textbf{BipedalWalker}\\($K=12$)\end{tabular} & \begin{tabular}[c]{@{}c@{}}\textbf{0.7794}\\$\pm$ 0.0011\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.5680\\$\pm$ 0.0919\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.7482\\$\pm$ 0.0061\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.7735\\$\pm$ 0.0045\end{tabular} & \begin{tabular}[c]{@{}c@{}}\textbf{0.7800}\\$\pm$ 0.0019\end{tabular} & \begin{tabular}[c]{@{}c@{}}\textbf{0.7788}\\$\pm$ 0.0019\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.8383\\$\pm$ 0.0015\end{tabular} \\
+\begin{tabular}[c]{@{}c@{}}\textbf{IntersectionZoo}\\($K=50$)\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.2045\\$\pm$ 0.0008\end{tabular} & \begin{tabular}[c]{@{}c@{}}\textbf{0.3788}\\$\pm$ 0.1059\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.4580\\$\pm$ 0.0107\end{tabular} & \begin{tabular}[c]{@{}c@{}}\textbf{0.4833}\\$\pm$ 0.0088\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.4183\\$\pm$ 0.0042\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.4626\\$\pm$ 0.0071\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.6238\\$\pm$ 0.0089\end{tabular} \\
+\begin{tabular}[c]{@{}c@{}}\textbf{CyclesGym}\\($K=50$)\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.2133\\$\pm$ 0.0001\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.2081\\$\pm$ 0.0002\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.2119\\$\pm$ 0.0009\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.2138\\$\pm$ 0.0002\end{tabular} & \begin{tabular}[c]{@{}c@{}}\textbf{0.2141}\\$\pm$ 0.0002\end{tabular} & \begin{tabular}[c]{@{}c@{}}\textbf{0.2143}\\$\pm$ 0.0002\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.2181\\$\pm$ 0.0001\end{tabular} \\
+\midrule
+\begin{tabular}[c]{@{}c@{}}\textbf{Aggregated}\\\textbf{Metric}\end{tabular} & \begin{tabular}[c]{@{}c@{}}-0.5824\\$\pm$ 0.0796\end{tabular} & \begin{tabular}[c]{@{}c@{}}-1.3987\\$\pm$ 0.6212\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.0000\\$\pm$ 0.0435\end{tabular} & \begin{tabular}[c]{@{}c@{}}\textbf{0.1494}\\$\pm$ 0.0468\end{tabular} & \begin{tabular}[c]{@{}c@{}}\textbf{0.1472}\\$\pm$ 0.0417\end{tabular} & \begin{tabular}[c]{@{}c@{}}\textbf{0.2198}\\$\pm$ 0.0352\end{tabular} & \begin{tabular}[c]{@{}c@{}}1.0000\\$\pm$ 0.0148\end{tabular} \\
+\bottomrule
+    \end{tabular}
+\end{center}
+    \scriptsize{* \textit{Note}: Values are reported as the mean performance ± half the width of the 95\% confidence interval. Bold values represent the highest value(s) within the statistically significant range for each task, excluding the oracle.\\}
+\end{small}
+\end{table*}
+

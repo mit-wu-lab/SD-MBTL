@@ -1,0 +1,23 @@
+
+\begin{table*}[!ht]
+\begin{small}
+\begin{center}
+  \caption{Performance comparison on 7D Synthetic Data ($\epsilon=\mathcal{N}(0, 5^2)$) with K=50.}
+  \label{tab:synthetic-performance-7D-noise5}
+  \begin{tabular}{lllcccc|c}
+    \toprule
+    \textbf{$f(x)$} & \textbf{$g(y)$} & \textbf{$h(x,y)$}  & \textbf{Random} & \textbf{GP-MBTL} & \textbf{M-MBTL} & \textbf{M/GP-MBTL (Ours)} & \textbf{Myopic Oracle}\\
+    \midrule
+    Constant & Constant & $L_1$ norm & {0.7136} $\pm$ 0.0001 & {0.7171} $\pm$ 0.0015 & \textbf{0.7199} $\pm$ 0.0002 & \textbf{0.7191} $\pm$ 0.0012 & {0.7239} $\pm$ 0.0001\\
+    Constant & Constant & Non-distance & {0.7395} $\pm$ 0.0001 & \textbf{0.8151} $\pm$ 0.0009 & {0.7308} $\pm$ 0.0002 & \textbf{0.8139} $\pm$ 0.0003 & {0.8172} $\pm$ 0.0001\\
+    Constant & Linear & $L_1$ norm & {0.6845} $\pm$ 0.0001 & {0.6786} $\pm$ 0.0025 & \textbf{0.6895} $\pm$ 0.0002 & \textbf{0.6895} $\pm$ 0.0002 & {0.6928} $\pm$ 0.0001\\
+    Constant & Linear & Non-distance & {0.6948} $\pm$ 0.0001 & \textbf{0.7466} $\pm$ 0.0057 & {0.6881} $\pm$ 0.0001 & \textbf{0.7435} $\pm$ 0.0051 & {0.7548} $\pm$ 0.0001\\
+\midrule
+\multicolumn{3}{c}{\textbf{Aggregated Performance}} & {-0.0000} $\pm$ 0.0049 & {0.3625} $\pm$ 0.2877 & {0.2473} $\pm$ 0.1452 & \textbf{0.7270} $\pm$ 0.0900 & {1.0000} $\pm$ 0.0032 \\
+    \bottomrule
+  \end{tabular}
+  \end{center}
+  \scriptsize{* \textit{Note}: Values are reported as the mean performance ± half the width of the 95\% confidence interval. Rows shaded in light gray indicate the synthetic settings that satisfy our proposed \textsc{Mountain} structure assumption. Bold values represent the highest value(s) within the statistically significant range for each task, excluding the oracle.}
+  \end{small}
+\end{table*}
+

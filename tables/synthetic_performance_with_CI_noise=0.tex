@@ -1,0 +1,27 @@
+
+\begin{table*}[!ht]
+\begin{small}
+\begin{center}
+  \caption{Performance comparison on Synthetic Data ($\epsilon=0$) with K=50.}
+  \label{tab:synthetic-performance-noise0}
+  \begin{tabular}{lllcccc|c}
+    \toprule
+    \textbf{$f(x)$} & \textbf{$g(y)$} & \textbf{$h(x,y)$}  & \textbf{Random} & \textbf{GP-MBTL} & \textbf{M-MBTL (Ours)} & \textbf{M/GP-MBTL (Ours)} & \textbf{Myopic Oracle}\\
+    \midrule
+    Constant & Linear & Non-distance & {0.7028} $\pm$ 0.0010 & \textbf{0.7250} $\pm$ 0.0000 & {0.7055} $\pm$ 0.0000 & \textbf{0.7250} $\pm$ 0.0000 & {0.7250} $\pm$ 0.0000\\
+    Constant & Linear & $L_1$ norm & {0.7122} $\pm$ 0.0002 & {0.7110} $\pm$ 0.0000 & \textbf{0.7187} $\pm$ 0.0000 & \textbf{0.7187} $\pm$ 0.0000 & {0.7190} $\pm$ 0.0000\\
+    Constant & None & Non-distance & {0.8688} $\pm$ 0.0019 & \textbf{0.9091} $\pm$ 0.0000 & {0.8736} $\pm$ 0.0000 & \textbf{0.9091} $\pm$ 0.0000 & {0.9091} $\pm$ 0.0000\\
+    Constant & None & $L_1$ norm & {0.9244} $\pm$ 0.0005 & {0.9364} $\pm$ 0.0000 & \textbf{0.9374} $\pm$ 0.0000 & \textbf{0.9374} $\pm$ 0.0000 & {0.9382} $\pm$ 0.0000\\
+    Linear & Linear & Non-distance & {0.5544} $\pm$ 0.0022 & \textbf{0.5714} $\pm$ 0.0000 & {0.5552} $\pm$ 0.0000 & \textbf{0.5714} $\pm$ 0.0000 & {0.5714} $\pm$ 0.0000\\
+    Linear & Linear & $L_1$ norm & {0.5517} $\pm$ 0.0027 & \textbf{0.5714} $\pm$ 0.0000 & {0.5535} $\pm$ 0.0000 & \textbf{0.5714} $\pm$ 0.0000 & {0.5714} $\pm$ 0.0000\\
+    Linear & None & Non-distance & {0.6761} $\pm$ 0.0032 & \textbf{0.7000} $\pm$ 0.0000 & {0.6772} $\pm$ 0.0000 & \textbf{0.7000} $\pm$ 0.0000 & {0.7000} $\pm$ 0.0000\\
+    Linear & None & $L_1$ norm & {0.7660} $\pm$ 0.0028 & \textbf{0.7857} $\pm$ 0.0000 & {0.7678} $\pm$ 0.0000 & \textbf{0.7857} $\pm$ 0.0000 & {0.7857} $\pm$ 0.0000\\
+\midrule
+\\multicolumn{3}{c}{\textbf{Aggregated Performance}} & {-0.0000} $\pm$ 0.0353 & {0.8368} $\pm$ 0.0268 & {0.3010} $\pm$ 0.0264 & \textbf{0.9873} $\pm$ 0.0015 & {1.0000} $\pm$ 0.0000 \\
+    \bottomrule
+  \end{tabular}
+  \end{center}
+  \scriptsize{* \textit{Note}: Values are reported as the mean performance ± half the width of the 95\% confidence interval. Rows shaded in light gray indicate the synthetic settings that satisfy our proposed \textsc{Mountain} structure assumption. Bold values represent the highest value(s) within the statistically significant range for each task, excluding the oracle.}
+  \end{small}
+\end{table*}
+
