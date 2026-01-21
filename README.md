@@ -107,4 +107,4 @@ This codebase is built upon the following repositories:
 Coming soon
 
 ## Contact
-This is anonymous codebase for the paper "Structure Detection for Contextual Reinforcement Learning (Under Review)". The code is not intended for public release. If you are interested in the code or have any questions, please contact the authors after the review process is completed.
+This is a codebase for the paper "Structure Detection for Contextual Reinforcement Learning (AAAI 2026)". If you are interested in the code or have any questions, please contact the authors.
