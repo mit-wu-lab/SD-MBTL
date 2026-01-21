@@ -1,6 +1,10 @@
 # Structure Detection for Contextual Reinforcement Learning
 
-Codebase for "Structure Detection for Contextual Reinforcement Learning (Under Review)"
+Codebase for "Structure Detection for Contextual Reinforcement Learning (AAAI 2026)"
+
+[![Webpage](https://img.shields.io/badge/Project%20Webpage-Visit-blue?style=for-the-badge)](https://mit-wu-lab.github.io/SD-MBTL/)
+[![arXiv](https://img.shields.io/badge/arXiv-2601.08120-red?style=for-the-badge)](https://arxiv.org/abs/2601.08120)
+
 
 ![Overall SD-MBTL Process](figures/overview-sd-mbtl.png)
 
